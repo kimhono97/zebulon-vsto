@@ -7,18 +7,19 @@
 			  <button id="BtnAbout" label="About Zebulon" size="large" imageMso="Info" onAction="OnBtnAction"/>
 		  </group>
 		  <group id="GroupSync" label="Sync">
-			  <button id="BtnSync" size="large" getEnabled="getEnabled" getImage="getImage" getLabel="getLabel" onAction="OnBtnAction"/>
+			  <button id="BtnSync" size="large" getEnabled="GetEnabled" getImage="GetImage" getLabel="GetLabel" onAction="OnBtnAction"/>
 			  <box id="BoxLocalSettings" boxStyle="vertical">
-				  <dropDown id="DdMode" label="Mode" getEnabled="getEnabled" onAction="OnDdAction" getSelectedItemIndex="getSelectedItemIndex">
+				  <dropDown id="DdMode" label="Mode" getEnabled="GetEnabled" onAction="OnDdAction" getSelectedItemIndex="GetSelectedItemIndex">
 					  <item id="ModeSender" label="Sender"/>
 					  <item id="ModeReceiver" label="Receiver"/>
 				  </dropDown>
-				  <editBox id="EbLocalIP" label="Local IP" enabled="false" getText="getText"/>
-				  <editBox id="EbLocalPort" label="Local Port" getEnabled="getEnabled"/>
+				  <editBox id="EbLocalIP" label="Local IP" enabled="false" getText="GetText" onChange="OnTextChange"/>
+				  <editBox id="EbLocalPort" label="Local Port" getEnabled="GetEnabled" getText="GetText" onChange="OnTextChange"/>
 			  </box >
 			  <box id="BoxRemoteSettings" boxStyle="vertical">
-				  <editBox id="EbRemoteIP" label="Remote IP" getEnabled="getEnabled"/>
-				  <editBox id="EbRemotePort" label="Remote Port" getEnabled="getEnabled"/>
+				  <button id="BtnConsole" size="normal" label="Console" imageMso="ActiveXTextBox" getEnabled="GetEnabled" onAction="OnBtnAction"/>
+				  <editBox id="EbRemoteIP" label="Remote IP" getEnabled="GetEnabled" getText="GetText" onChange="OnTextChange"/>
+				  <editBox id="EbRemotePort" label="Remote Port" getEnabled="GetEnabled" getText="GetText" onChange="OnTextChange"/>
 			  </box>
 		  </group>
       </tab>

@@ -1,25 +1,52 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Xml.Linq;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
-using Office = Microsoft.Office.Core;
 using System.Windows.Forms;
+using System.Diagnostics;
+
+using ZebulonVSTO.Sync;
+using System.Windows.Threading;
 
 namespace ZebulonVSTO {
     public partial class ThisAddIn {
         private SyncManager pSMng = null;
+        private SyncConsole pSCsl = null;
+        private Dispatcher pDispatcher = null;
         public SyncManager SyncMng {
             get { return this.pSMng; }
         }
 
         public void ShowInfoDlg() {
-            MessageBox.Show("...");
+            System.Reflection.Assembly pAssembly = System.Reflection.Assembly.GetExecutingAssembly();
+            FileVersionInfo pInfo = FileVersionInfo.GetVersionInfo(pAssembly.Location);
+            
+            string strInfo = (" * Name\t\t: " + pInfo.ProductName + "");
+            strInfo += ("\n * Version\t: " + pInfo.ProductVersion);
+            strInfo += ("\n * Copyright\t: " + pInfo.LegalCopyright);
+
+            MessageBox.Show(strInfo, "About");
+        }
+        public void ShowSyncConsole() {
+            this.pSCsl = new SyncConsole(this.pSCsl);
+            this.pSCsl.Show();
+        }
+        public void HideSyncConsole() {
+            this.pSCsl.Close();
+        }
+        public void LogDebug(string strLine) {
+            this.pDispatcher.Invoke(() => {
+                this.pSCsl.LogText += (strLine + "\n");
+            });
+        }
+        public void LogError(string strMsg, Exception e) {
+            this.pDispatcher.Invoke(() => {
+                this.pSCsl.LogText += ("<!> ERROR : " + strMsg + "\n" + e.ToString() + "\n");
+            });
         }
 
         private void ThisAddIn_Startup(object sender, System.EventArgs e) {
             this.pSMng = SyncManager.GetInstance();
+            this.pSCsl = new SyncConsole();
+            this.pDispatcher = Dispatcher.CurrentDispatcher;
         }
 
         private void ThisAddIn_Shutdown(object sender, System.EventArgs e) {

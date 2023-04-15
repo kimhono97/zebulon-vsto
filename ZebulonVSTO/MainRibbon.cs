@@ -1,14 +1,12 @@
 ﻿using Microsoft.Office.Core;
-using Microsoft.Office.Tools.Ribbon;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Windows.Forms;
 using Office = Microsoft.Office.Core;
+
+using ZebulonVSTO.Sync;
 
 // TODO:  리본(XML) 항목을 설정하려면 다음 단계를 수행하십시오:
 
@@ -50,16 +48,21 @@ namespace ZebulonVSTO {
             return GetResourceText("ZebulonVSTO.MainRibbon.xml");
         }
 
-        public bool getEnabled(IRibbonControl c) {
+        #endregion
+
+        #region 리본 콜백
+        //여기서 콜백 메서드를 만듭니다. 콜백 메서드를 추가하는 방법에 대한 자세한 내용은 https://go.microsoft.com/fwlink/?LinkID=271226을 참조하세요.
+        public bool GetEnabled(IRibbonControl c) {
             string strCompID = c.Id;
             bool bRet = false;
             if (!this.pEnableMap.TryGetValue(strCompID, out bRet)) {
                 switch (strCompID) {
                     case "DdMode":
+                    case "EbLocalPort":
                         bRet = true;
                         break;
                     case "BtnSync":
-                    case "EbLocalPort":
+                    case "BtnConsole":
                     case "EbRemoteIP":
                     case "EbRemotePort":
                         bRet = false;
@@ -69,7 +72,7 @@ namespace ZebulonVSTO {
             }
             return bRet;
         }
-        public string getImage(IRibbonControl c) {
+        public string GetImage(IRibbonControl c) {
             string strCompID = c.Id;
             switch (strCompID) {
                 case "BtnSync":
@@ -77,7 +80,7 @@ namespace ZebulonVSTO {
             }
             return "";
         }
-        public string getLabel(IRibbonControl c) {
+        public string GetLabel(IRibbonControl c) {
             string strCompID = c.Id;
             switch (strCompID) {
                 case "BtnSync":
@@ -85,32 +88,60 @@ namespace ZebulonVSTO {
             }
             return "";
         }
-        public string getText(IRibbonControl c) {
+        public string GetText(IRibbonControl c) {
             string strCompID = c.Id;
             switch (strCompID) {
                 case "EbLocalIP":
                     return SyncMng.LocalIP;
+                case "EbLocalPort":
+                    return SyncMng.LocalPort.ToString();
+                case "EbRemoteIP":
+                    return SyncMng.RemoteIP;
+                case "EbRemotePort":
+                    return SyncMng.RemotePort.ToString();
             }
             return "";
         }
-        public int getSelectedItemIndex(IRibbonControl c) {
+        public void OnTextChange(IRibbonControl c, string strText) {
+            string strCompID = c.Id;
+            try {
+                switch (strCompID) {
+                    case "EbLocalIP":
+                        SyncMng.LocalIP = strText;
+                        break;
+                    case "EbLocalPort":
+                        SyncMng.LocalPort = int.Parse(strText);
+                        break;
+                    case "EbRemoteIP":
+                        SyncMng.RemoteIP = strText;
+                        break;
+                    case "EbRemotePort":
+                        SyncMng.RemotePort = int.Parse(strText);
+                        break;
+                }
+            } catch (Exception e) {
+                Console.WriteLine(e.ToString());
+            }
+            this.ribbon.InvalidateControl(strCompID);
+        }
+        public int GetSelectedItemIndex(IRibbonControl c) {
             string strCompID = c.Id;
             switch (strCompID) {
                 case "DdMode":
                     switch (SyncMng.Mode) {
-                        case SyncManager.SyncMode.SENDER:   return 0;
+                        case SyncManager.SyncMode.SENDER: return 0;
                         case SyncManager.SyncMode.RECEIVER: return 1;
                     }
                     break;
             }
             return -1;
         }
-
         public void OnBtnAction(IRibbonControl c) {
             string strCompID = c.Id;
             switch (strCompID) {
                 case "BtnSync":
                     if (SyncMng.IsRunning()) {
+                        Globals.ThisAddIn.HideSyncConsole();
                         SyncMng.StopSync();
                         updateSyncSettingUI();
                     } else {
@@ -121,6 +152,9 @@ namespace ZebulonVSTO {
                     break;
                 case "BtnAbout":
                     Globals.ThisAddIn.ShowInfoDlg();
+                    break;
+                case "BtnConsole":
+                    Globals.ThisAddIn.ShowSyncConsole();
                     break;
             }
         }
@@ -150,8 +184,9 @@ namespace ZebulonVSTO {
             bool bSndMode = (SyncMng.Mode == SyncManager.SyncMode.SENDER);
             bool bRcvMode = (SyncMng.Mode == SyncManager.SyncMode.RECEIVER);
             updateEnableMap("BtnSync", bSndMode || bRcvMode);
+            updateEnableMap("BtnConsole", bRunning);
             updateEnableMap("DdMode", !bRunning);
-            updateEnableMap("EbLocalPort", !bRunning && bRcvMode);
+            updateEnableMap("EbLocalPort", !bRunning);
             updateEnableMap("EbRemoteIP", !bRunning && bSndMode);
             updateEnableMap("EbRemotePort", !bRunning && bSndMode);
             this.ribbon.Invalidate();
@@ -163,12 +198,6 @@ namespace ZebulonVSTO {
                 this.pEnableMap.Add(strKey, bValue);
             }
         }
-
-        #endregion
-
-        #region 리본 콜백
-        //여기서 콜백 메서드를 만듭니다. 콜백 메서드를 추가하는 방법에 대한 자세한 내용은 https://go.microsoft.com/fwlink/?LinkID=271226을 참조하세요.
-
         public void Ribbon_Load(Office.IRibbonUI ribbonUI) {
             this.ribbon = ribbonUI;
         }

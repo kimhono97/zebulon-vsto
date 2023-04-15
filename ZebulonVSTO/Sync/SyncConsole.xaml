@@ -1,0 +1,21 @@
+﻿<Window x:Name="SyncConsoleWnd" x:Class="ZebulonVSTO.Sync.SyncConsole"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+    xmlns:local="clr-namespace:ZebulonVSTO.Sync"
+    mc:Ignorable="d" 
+    d:DesignHeight="450" d:DesignWidth="400"
+    Height="550" Width="500" MinHeight="550" MinWidth="500" Title="ZebulonVSTO Sync Console" ShowInTaskbar="False">
+    <Grid Background="#FF3E3B52">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="197*"/>
+            <RowDefinition Height="15*"/>
+        </Grid.RowDefinitions>
+        <ScrollViewer x:Name="SV_Log" Margin="10,10,10,10">
+            <TextBox x:Name="TB_Log" Background="Black" Foreground="White" SelectionBrush="#FF585858" Margin="0,0,0,-3" FontFamily="Consolas" Padding="1,0,0,0" AcceptsReturn="True" AcceptsTab="True" IsReadOnly="True"/>
+        </ScrollViewer>
+        <TextBox x:Name="TB_Cmd" Margin="10,0,60,10" Grid.Row="1" TextWrapping="Wrap" Background="#FF2B2B2B" Foreground="White" FontFamily="Consolas" FontSize="14" ToolTip="" IsTabStop="False" AutomationProperties.IsColumnHeader="True" KeyDown="TB_Cmd_KeyDown"/>
+        <Button Content="Enter" Grid.Row="1" Margin="0,0,10,10" Width="50" HorizontalAlignment="Right" FontWeight="Bold" FontFamily="Consolas" Click="Button_Click"/>
+    </Grid>
+</Window>
