@@ -83,42 +83,54 @@ namespace ZebulonVSTO {
         }
         public bool DoSelectSlide(int nSlideIndex) {
             bool bRet = false;
-            this.pDispatcher.Invoke(() => {
-                Presentation pPres = this.Application.ActivePresentation;
-                if (pPres != null) {
-                    nSlideIndex = Math.Min(Math.Max(nSlideIndex, 1), pPres.Slides.Count);
-                    pPres.Slides[nSlideIndex].Select();
-                    bRet = true;
-                }
-            });
+            try {
+                this.pDispatcher.Invoke(() => {
+                    Presentation pPres = this.Application.ActivePresentation;
+                    if (pPres != null) {
+                        nSlideIndex = Math.Min(Math.Max(nSlideIndex, 1), pPres.Slides.Count);
+                        pPres.Slides[nSlideIndex].Select();
+                        bRet = true;
+                    }
+                });
+            } catch (Exception e) {
+                LogError(String.Format("Failed to select slide {0}.", nSlideIndex), e);
+            }
             return bRet;
         }
         public bool DoSlideShow(int nSlideIndex) {
             bool bRet = false;
-            this.pDispatcher.Invoke(() => {
-                SlideShowWindow pWnd = GetCurrentSlideShowWnd();
-                if (pWnd == null && this.Application.ActivePresentation != null) {
-                    pWnd = this.Application.ActivePresentation.SlideShowSettings.Run();
-                    SetCurrentSlideShowWnd(pWnd);
-                }
-                if (pWnd != null) {
-                    nSlideIndex = Math.Min(Math.Max(nSlideIndex, 1), pWnd.Presentation.Slides.Count);
-                    pWnd.View.GotoSlide(nSlideIndex);
-                    bRet = true;
-                }
-            });
+            try {
+                this.pDispatcher.Invoke(() => {
+                    SlideShowWindow pWnd = GetCurrentSlideShowWnd();
+                    if (pWnd == null && this.Application.ActivePresentation != null) {
+                        pWnd = this.Application.ActivePresentation.SlideShowSettings.Run();
+                        SetCurrentSlideShowWnd(pWnd);
+                    }
+                    if (pWnd != null) {
+                        nSlideIndex = Math.Min(Math.Max(nSlideIndex, 1), pWnd.Presentation.Slides.Count);
+                        pWnd.View.GotoSlide(nSlideIndex);
+                        bRet = true;
+                    }
+                });
+            } catch (Exception e) {
+                LogError(String.Format("Failed to start slide show {0}.", nSlideIndex), e);
+            }
             return bRet;
         }
         public bool DoSlideShowEnd() {
             bool bRet = false;
-            this.pDispatcher.Invoke(() => {
-                SlideShowWindow pWnd = GetCurrentSlideShowWnd();
-                if (pWnd != null) {
-                    pWnd.View.Exit();
-                    bRet = true;
-                }
-                this.nSlideShowWndIndex = -1;
-            });
+            try {
+                this.pDispatcher.Invoke(() => {
+                    SlideShowWindow pWnd = GetCurrentSlideShowWnd();
+                    if (pWnd != null) {
+                        pWnd.View.Exit();
+                        bRet = true;
+                    }
+                    this.nSlideShowWndIndex = -1;
+                });
+            } catch (Exception e) {
+                LogError(String.Format("Failed to finish slide show."), e);
+            }
             return bRet;
         }
 
