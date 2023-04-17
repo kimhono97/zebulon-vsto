@@ -32,7 +32,7 @@ namespace ZebulonVSTO.Sync {
                 return;
             }
             LogText += (CommandText + "\n");
-            Globals.ThisAddIn.SyncMng.SendCustomMessage(CommandText);
+            Globals.ThisAddIn.SyncMng.SendRequestMessage(CommandText, true);
             CommandText = "";
         }
 

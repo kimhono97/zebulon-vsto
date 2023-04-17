@@ -185,17 +185,48 @@ namespace ZebulonVSTO.Sync {
         private SyncMessage CreateSenderMessage(MessageType nType, string strData) {
             return new SyncMessage(NextMessageID++, this.strLocalIP, this.nLocalPort, nType, strData);
         }
-        public bool SendCustomMessage(string strData) {
-            SyncMessage pMsg = CreateSenderMessage(MessageType.CUSTOM, strData);
+        public bool SendRequestMessage(string strData, bool bIsCustom=false) {
+            if (this.nSyncMode != SyncMode.SENDER && (!Globals.ThisAddIn.DEBUG_MODE || !bIsCustom)) {
+                return false;
+            }
+            SyncMessage pMsg = CreateSenderMessage(bIsCustom ? MessageType.CUSTOM : MessageType.REQUEST, strData);
             return SendMessage(pMsg);
         }
 
         private bool ProcessRequest(SyncMessage pReceived) {
-            if (pReceived.Data.StartsWith("alert ")) {
-                string strSender = pReceived.SenderIP + ":" + pReceived.SenderPort.ToString();
-                string strAlertMsg = pReceived.Data.Substring("alert ".Length);
-                DialogResult pRet = MessageBox.Show(strAlertMsg, strSender);
-                return pRet == DialogResult.OK;
+            string strData = pReceived.Data;
+            if (strData != null && strData.Length > 0) {
+                string strCommand = "";
+                string strDetail = "";
+                int nSep = strData.IndexOf(" ");
+                if (nSep > 0) {
+                    strCommand = strData.Substring(0, nSep).ToLower();
+                    if (strData.Length > nSep + 1) {
+                        strDetail = strData.Substring(nSep + 1);
+                    }
+                } else {
+                    strCommand = strData.ToLower();
+                }
+
+                int nSlideIndex;
+                switch (strCommand) {
+                    case "alert":
+                        string strSender = pReceived.SenderIP + ":" + pReceived.SenderPort.ToString();
+                        DialogResult pRet = MessageBox.Show(strDetail, strSender);
+                        return pRet == DialogResult.OK;
+                    case "select":
+                        if (int.TryParse(strDetail, out nSlideIndex)) {
+                            return Globals.ThisAddIn.DoSelectSlide(nSlideIndex);
+                        }
+                        break;
+                    case "showslide":
+                        if (int.TryParse(strDetail, out nSlideIndex)) {
+                            return Globals.ThisAddIn.DoSlideShow(nSlideIndex);
+                        }
+                        break;
+                    case "hideslide":
+                        return Globals.ThisAddIn.DoSlideShowEnd();
+                }
             }
             return false;
         }
