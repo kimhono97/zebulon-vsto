@@ -31,20 +31,16 @@ namespace ZebulonVSTO {
         }
         public void ShowSyncConsole() {
             this.pSCsl = new SyncConsole(this.pSCsl);
-            this.pSCsl.Show();
+            this.pSCsl.OpenWindow();
         }
         public void HideSyncConsole() {
-            this.pSCsl.Close();
+            this.pSCsl.CloseWindow();
         }
         public void LogDebug(string strLine) {
-            this.pDispatcher.Invoke(() => {
-                this.pSCsl.LogText += (strLine + "\n");
-            });
+            this.pSCsl.AppendLogLine(strLine);
         }
         public void LogError(string strMsg, Exception e) {
-            this.pDispatcher.Invoke(() => {
-                this.pSCsl.LogText += ("<!> ERROR : " + strMsg + "\n" + e.ToString() + "\n");
-            });
+            this.pSCsl.AppendLogLine("<!> ERROR : " + strMsg + "\n" + e.ToString());
         }
 
         private SlideShowWindow GetCurrentSlideShowWnd() {
