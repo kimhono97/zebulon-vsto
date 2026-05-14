@@ -1,3 +1,7 @@
+> 📦 이 리파지토리는 [`kimhono97/jym_ppt`](https://github.com/kimhono97/jym_ppt) 모노레포에서 분리되었습니다. 분리 후속 작업이 진행 중이며, 상세 맥락과 체크리스트는 [`MIGRATION_NOTES.md`](./MIGRATION_NOTES.md)를 참고하세요.
+
+---
+
 ### ZebulonVSTO (PowerPoint Add-in)
 
 ### I. IDE Settings
