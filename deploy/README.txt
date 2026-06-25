@@ -17,7 +17,10 @@ UDP로 한 PowerPoint(송신)의 슬라이드 이동을 다른 PowerPoint(수신
    - 탐색기에서 마우스 오른쪽 > "PowerShell에서 실행", 또는
    - PowerShell 창에서:  powershell -ExecutionPolicy Bypass -File .\Install.ps1
 4. 설치 중 인증서 신뢰 확인창이 뜨면 "예"를 클릭합니다. (자체서명 인증서 1회 신뢰)
-5. PowerPoint를 다시 시작하면 추가 기능 탭에 "Zebulon"이 나타납니다.
+5. 끝나면 결과 창(설치 완료/실패)이 뜹니다. "INSTALL COMPLETE"면 성공입니다.
+6. PowerPoint를 다시 시작하면 추가 기능 탭에 "Zebulon"이 나타납니다.
+
+   ※ 제거(Uninstall.ps1)도 동일하게 끝에 결과 창이 뜹니다.
 
 [ 업데이트 ]
 새 압축을 받아 같은 방식으로 Install.ps1 을 다시 실행하면 덮어쓰기 됩니다.
