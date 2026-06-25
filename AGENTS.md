@@ -11,9 +11,9 @@ A **VSTO (Visual Studio Tools for Office) PowerPoint COM add-in** written in C# 
 | Solution / project | `ZebulonVSTO.sln` → `ZebulonVSTO/ZebulonVSTO.csproj` (single project) |
 | Build tool | **Visual Studio / MSBuild** — *not* `dotnet` (VSTO + COM interop) |
 | Verified IDE | Visual Studio 2022+ — confirmed on **VS 2026 Community v18.1** |
-| NuGet | classic **packages.config** (9 packages → `packages/`), *not* PackageReference |
+| Dependencies | **framework-only** — no NuGet packages; JSON via built-in `System.Runtime.Serialization` |
 | Host | PowerPoint **2013+**; default UDP port **8291** |
-| Tests | none — runtime verification is manual via F5 into PowerPoint |
+| Tests | xUnit unit tests for pure logic in `tests/ZebulonVSTO.Tests` (run via `dotnet test`); COM runtime still verified manually via F5 |
 | License | MIT |
 
 ## Build & Debug
@@ -32,10 +32,8 @@ A **VSTO (Visual Studio Tools for Office) PowerPoint COM add-in** written in C# 
 
 ### From the command line (CI / quick check)
 ```bash
-# 1. Restore (packages.config requires this flag)
-msbuild ZebulonVSTO.sln -t:restore -p:RestorePackagesConfig=true
-
-# 2. Build — VisualStudioVersion=10.0 is REQUIRED, see gotcha below
+# Build — VisualStudioVersion=10.0 is REQUIRED, see gotcha below.
+# No NuGet restore is needed: the add-in has no package dependencies.
 msbuild ZebulonVSTO.sln -p:Configuration=Release -p:VisualStudioVersion=10.0
 ```
 
@@ -57,43 +55,68 @@ A single F5 instance can't exercise SENDER↔RECEIVER traffic by itself — you 
    $u.Send($b, $b.Length, "127.0.0.1", 8291) | Out-Null; $u.Close()
    ```
    Swap `Data` for `alert <text>`, `select <n>`, `showslide <n>`, or `hideslide`. The RECEIVER executes the command and replies with a RESPONSE (`Success`/`Failed`); the **Console** button shows the traffic log.
+   Helper scripts under `tests/manual/` mirror the add-in's sync roles, parameterized by a single `-Port` (pure PowerShell, no add-in DLL — they drive / stand in for any peer as-is). A SENDER binds an ephemeral local port automatically (so it never collides with `-Port`); a RECEIVER binds `-Port`:
+   ```powershell
+   # SENDER — emit one command and print the RESPONSE (exit 0 = Success, 1 = Failed/timeout)
+   ./tests/manual/Send-SyncCommand.ps1 -Command "select 2" -Port 8291
+
+   # SENDER REPL — type commands until quit/bye/exit; 'help' lists them
+   ./tests/manual/Start-SyncSession.ps1 -Mode Sender -Port 8291
+
+   # RECEIVER — listen on -Port, log datagrams, reply (stands in for a 2nd PowerPoint).
+   # -Reply Success|Failed|None, -RunSeconds N; -Ip sets the bind interface / send target.
+   ./tests/manual/Start-SyncSession.ps1 -Mode Receiver -Port 8291
+   ```
+   Same-machine note: the add-in binds its Local Port (8291) in BOTH modes, so a PS peer on the same box must use a different `-Port` than the running add-in (or run on another machine).
 3. Alternatively, run a second PowerPoint instance in **Sender** mode and drive it from its Sync Console.
+
+### Unit tests
+The pure, COM-free logic (`CommandParser`, `SyncMessage` serialization) has xUnit coverage in `tests/ZebulonVSTO.Tests`:
+```bash
+dotnet test tests/ZebulonVSTO.Tests
+```
+- The test project is **SDK-style (`net472`) and deliberately NOT in `ZebulonVSTO.sln`**, so it builds with the modern `dotnet` toolchain independently of the VSTO/MSBuild build. It **link-compiles** the source files under test (`Sync/SyncDefaults.cs`, `Sync/CommandParser.cs`, `Sync/Message.cs`) rather than referencing the add-in DLL — so `dotnet test` never touches the VSTO toolchain.
+- Anything requiring PowerPoint/COM (`SyncManager` networking, `ThisAddIn` slide actions) is **not** unit-tested — verify those via F5 as above.
+- `Serialized_ContainsFrozenWireFieldName` guards the on-the-wire JSON field names; if it fails, peer-to-peer sync is broken — fix the code, not the test.
 
 ## Project Structure
 
 ```
 ZebulonVSTO.sln
 ZebulonVSTO/
-  ThisAddIn.cs              ← entry point: lifecycle + PowerPoint event handlers + slide actions
+  ThisAddIn.cs              ← entry point: lifecycle + PowerPoint event handlers; implements ISyncLogger + ISlideController
   ThisAddIn.Designer.cs     ← VSTO-generated plumbing (Globals, ribbon collection) — DO NOT hand-edit
   ThisAddIn.Designer.xml    ← VSTO host blueprint (generates ThisAddIn.Designer.cs) — DO NOT hand-edit
   MainRibbon.cs             ← ribbon callbacks ([ComVisible] IRibbonExtensibility)
   MainRibbon.xml            ← declarative ribbon UI (embedded resource)
   Sync/
-    SyncManager.cs          ← UDP transport singleton (send/receive, modes, commands)
-    Message.cs              ← SyncMessage JSON DTO + MessageType enum
+    SyncManager.cs          ← UDP transport singleton (send/receive, modes); collaborators injected via Attach()
+    Message.cs              ← SyncMessage wire DTO + MessageType enum (DataContractJsonSerializer)
+    CommandParser.cs        ← pure command-string parser → ParsedCommand/CommandKind (unit-tested)
+    SyncContracts.cs        ← ISyncLogger + ISlideController (host-implemented seams; decouple SyncManager from Globals)
+    SyncDefaults.cs         ← shared default IP/port constants (COM-free)
     SyncConsole.xaml(.cs)   ← WPF debug console (log + custom command input)
   Properties/               ← AssemblyInfo, (empty) Settings & Resources scaffolding
-  app.config                ← one binding redirect (see Dependencies)
-  packages.config           ← NuGet (classic)
+  app.config                ← empty configuration (no binding redirects; see Dependencies)
   ZebulonVSTO_TemporaryKey.pfx ← manifest signing key (intentionally tracked — see Deployment)
+tests/
+  ZebulonVSTO.Tests/        ← SDK-style net472 xUnit project (not in the .sln; run via `dotnet test`)
 ```
 
 ### How the sync feature works
-- **`SyncManager`** (`Sync/SyncManager.cs`) is a lazily-created singleton. Key constants: `DEFAULT_PORT=8291`, `DEFAULT_LOCAL=127.0.0.1`, `DEFAULT_TARGET=255.255.255.255`. Modes: `SENDER` (emits slide-navigation requests), `RECEIVER` (executes them), `NONE`. Mode/ports/remote IP are locked while sync is running.
-- **Wire format** (`Sync/Message.cs`): `SyncMessage` serialized via `System.Text.Json` with **PascalCase** fields `SenderIP`, `SenderPort`, `ID`, `Type`, `Data`. `MessageType` enum is `CUSTOM=0, REQUEST=1, RESPONSE=2`. **Renaming/recasing any field breaks the on-the-wire contract between instances — keep them stable.**
-- **Commands** (RECEIVER side, `ProcessRequest`): `alert <text>`, `select <n>`, `showslide <n>`, `hideslide`. RECEIVER always replies with a RESPONSE (`Success`/`Failed`).
-- **Threading**: a single background thread runs the blocking `UdpClient.Receive` loop, stopped via `Thread.Abort()`. **Any PowerPoint Interop call triggered by a received message MUST be marshalled to the UI thread via `ThisAddIn`'s `Dispatcher`** (see `DoSelectSlide`/`DoSlideShow`/`DoSlideShowEnd`) — never call Interop directly from the receive thread.
-- **Ribbon** attaches to the built-in Add-Ins tab (`idMso="TabAddIns"`) relabeled **"Zebulon"** with groups `Info` and `Sync`. `MainRibbon.xml` (control IDs) and `MainRibbon.cs` (callbacks) **must stay in sync**; adding a control means editing both, plus the `pEnableMap` logic.
-- **`DEBUG_MODE`** (`ThisAddIn.cs`, currently `true`) gates whether the console may send custom (non-SENDER) commands.
+- **`SyncManager`** (`Sync/SyncManager.cs`) is a lazily-created singleton. Default IP/port constants live in `Sync/SyncDefaults.cs` (`Port=8291`, `Localhost=127.0.0.1`, `Broadcast=255.255.255.255`) so the pure types stay COM-free. Modes: `SENDER` (emits slide-navigation requests), `RECEIVER` (executes them), `NONE`. Mode/ports/remote IP are locked while sync is running. It holds **no** compile-time dependency on `Globals.ThisAddIn`: the host wires an `ISyncLogger` and `ISlideController` via `Attach()` at startup.
+- **Wire format** (`Sync/Message.cs`): `SyncMessage` serialized as UTF-8 JSON via the framework **`DataContractJsonSerializer`** (no third-party package). Fields `SenderIP`, `SenderPort`, `ID`, `Type`, `Data` are pinned with `[DataMember(Name=...)]`. `MessageType` enum is `CUSTOM=0, REQUEST=1, RESPONSE=2`. **The field names are a frozen on-the-wire contract between instances — do NOT rename them** (member *order* in the JSON is irrelevant; parsing is by name). The `Serialized_ContainsFrozenWireFieldName` test guards this.
+- **Commands** (RECEIVER side): the raw command string is parsed by the pure `CommandParser.Parse` → `ParsedCommand` (`alert <text>`, `select <n>`, `showslide <n>`, `hideslide`; verbs case-insensitive via `ToLowerInvariant`). `SyncManager.ProcessRequest` switches on `ParsedCommand.Kind` and dispatches to `ISlideController`. RECEIVER always replies with a RESPONSE (`Success`/`Failed`).
+- **Threading**: a single **background** thread runs the blocking `UdpClient.Receive` loop. Shutdown is **cooperative** (no `Thread.Abort`): `StopSync` flips a `volatile bool`, calls `UdpClient.Close()` to unblock `Receive` (caught as `ObjectDisposedException`), then `Thread.Join`s. Message IDs use `Interlocked.Increment`. **Any PowerPoint Interop call triggered by a received message MUST be marshalled to the UI thread via `ThisAddIn`'s `Dispatcher`** (see `SelectSlide`/`ShowSlide`/`HideSlide`/`Alert`) — never call Interop directly from the receive thread.
+- **Ribbon** attaches to the built-in Add-Ins tab (`idMso="TabAddIns"`) relabeled **"Zebulon"** with groups `Info` and `Sync`. `MainRibbon.xml` (control IDs + `onAction`/`getEnabled`/… callback names) and `MainRibbon.cs` (callbacks) **must stay in sync**; the public callback method names are bound by the XML and must not be renamed. Adding a control means editing both, plus the `_enableMap` logic.
+- **`DebugMode`** (`ThisAddIn.cs`, currently `true`) gates whether the console may send custom (non-SENDER) commands; it is passed to `SyncManager.Attach`. Defaulting it to `false` is a deferred deployment task.
 
 ## Dependencies
 
-- **Classic `packages.config`** restore (not PackageReference); 9 packages, all `net472`, restored into repo-root `packages/`.
-- **`System.Text.Json` 7.0.2** is the only first-class dependency (JSON for the sync feature). The other 8 (`Microsoft.Bcl.AsyncInterfaces`, `System.Memory`/`Buffers`/`Numerics.Vectors`, `Runtime.CompilerServices.Unsafe`, `Text.Encodings.Web`, `ValueTuple`, `Threading.Tasks.Extensions`) are its transitive .NET Framework support set — **keep them version-aligned; don't bump one in isolation.**
+- **No NuGet packages.** The add-in is framework-only; there is no `packages.config` and no `packages/` restore step. JSON (de)serialization uses the built-in **`System.Runtime.Serialization`** (`DataContractJsonSerializer`) — added as a plain framework `<Reference>` in the csproj.
+  - *History:* the sync feature previously depended on `System.Text.Json 7.0.2` plus its 8 transitive packages. That set was flagged **NU1903** and has been removed entirely in favour of the framework serializer. If you reintroduce a serializer, prefer the framework one; don't pull `System.Text.Json` back in without a deliberate review.
 - **Office interop** (`Office`, `Microsoft.Office.Interop.PowerPoint`, both v15.0.0.0) use `EmbedInteropTypes=true`, so interop types are embedded and no PIAs ship. Keep `Private=False`; do not enable Copy Local.
-- **`app.config`** has one binding redirect: `System.Runtime.CompilerServices.Unsafe → 6.0.0.0`. Changing dependency versions may require updating it. It is copied to output as `ZebulonVSTO.dll.config` — edit `app.config`, never the bin copy.
-- 🔒 **Known security advisory:** `System.Text.Json 7.0.2` is flagged **NU1903 (high severity, GHSA-hh2w-p6rv-4g7w)**. A bump was intentionally deferred. Do **not** silently upgrade it; if upgrading, do it deliberately and re-verify the binding redirect and that the whole transitive set still restores and builds.
+- **`app.config`** is now an empty `<configuration/>` — the previous `System.Runtime.CompilerServices.Unsafe` binding redirect existed only for the removed JSON chain. It is still copied to output as `ZebulonVSTO.dll.config`; edit `app.config`, never the bin copy.
 
 ## Deployment
 
@@ -106,8 +129,9 @@ ZebulonVSTO/
 - **Never commit build artifacts**: `bin/`, `obj/`, `packages/`, `*.user`, `.vs/`, and VS upgrade reports (`UpgradeLog*.htm`) are gitignored. If you open the solution in a newer VS it may regenerate `UpgradeLog.htm` — it is ignored; do not commit it.
 - **Keep `ZebulonVSTO_TemporaryKey.pfx` tracked.** `.gitignore` has a deliberate `!` exception for it; do not remove that exception or delete the file.
 - **Do not hand-edit generated files**: `*.Designer.cs` (incl. `Properties/Resources.Designer.cs`, `Properties/Settings.Designer.cs`), `ThisAddIn.Designer.xml`, and `obj/*.g.cs` — they are VSTO/WPF-generated.
-- Existing code uses a Hungarian-ish prefix convention (`p`=object, `n`=int, `str`=string, `b`=bool) and mixes Korean (VSTO-generated) and English comments. Match the surrounding file.
-- Build with **MSBuild/Visual Studio only**, never `dotnet build` (VSTO + COM).
+- **Naming follows standard C# conventions** (the old Hungarian `p`/`n`/`str`/`b` prefixes were removed): `_camelCase` for private fields, `PascalCase` for methods/properties/types/constants, `camelCase` for locals & parameters. The two exceptions are intentional and **must not** be "modernized": the `SyncMessage` wire field names (`SenderIP`/`SenderPort`/`ID`/`Type`/`Data`) and the `MainRibbon` public callback names bound by `MainRibbon.xml`.
+- Comments default to **English** for new code; VSTO-generated files still contain Korean comments — leave generated files alone.
+- Build the add-in with **MSBuild/Visual Studio only**, never `dotnet build` (VSTO + COM). The `tests/` project is the opposite — it is SDK-style and built/run with **`dotnet test`** only (it is not in the add-in solution).
 - Commit messages: **English** (consistent with history).
 
 ## Documentation Language Policy
@@ -128,4 +152,6 @@ Rationale: English agent-facing content improves token efficiency and agent comp
 
 ## Known Follow-Ups
 
-- `System.Text.Json 7.0.2` high-severity advisory (NU1903 / GHSA-hh2w-p6rv-4g7w) — deferred upgrade (see *Dependencies*).
+- **Deployment hardening (not yet done):** `DebugMode` still defaults to `true` (allows console-issued custom commands); drive it from configuration and default to `false` for release. Note: `DebugMode` is currently snapshotted into `SyncManager` at `Attach()` startup — if it becomes runtime-configurable, propagate changes to the manager (re-`Attach` or add an `AllowCustomCommands` setter) rather than relying on the startup value. Replace the self-signed `ZebulonVSTO_TemporaryKey.pfx` with a real code-signing certificate.
+- **CI:** no pipeline yet. A GitHub Actions Windows runner does not ship the VSTO build targets by default, so a cloud full-build needs investigation; `dotnet test tests/ZebulonVSTO.Tests` runs anywhere and is the easy first CI step.
+- The previous `System.Text.Json` NU1903 advisory is **resolved** (dependency removed — see *Dependencies*).

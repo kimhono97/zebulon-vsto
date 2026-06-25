@@ -1,4 +1,4 @@
-﻿using Microsoft.Office.Core;
+using Microsoft.Office.Core;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,41 +8,21 @@ using Office = Microsoft.Office.Core;
 
 using ZebulonVSTO.Sync;
 
-// TODO:  리본(XML) 항목을 설정하려면 다음 단계를 수행하십시오:
-
-// 1. 다음 코드 블록을 ThisAddin, ThisWorkbook 또는 ThisDocument 클래스에 복사합니다.
-
-//  protected override Microsoft.Office.Core.IRibbonExtensibility CreateRibbonExtensibilityObject()
-//  {
-//      return new MainRibbon();
-//  }
-
-// 2. 단추 클릭 등의 사용자 작업을 처리하려면 이 클래스의 "리본 콜백" 영역에서 콜백
-//    메서드를 만듭니다. 참고: 리본 디자이너에서 이 리본을 내보낸 경우 이벤트 처리기의 코드를
-//    콜백 메서드로 이동하고 리본 확장성(RibbonX) 프로그래밍 모델에서 사용할 수 있도록
-//    코드를 수정해야 합니다.
-
-// 3. 리본 XML 파일의 컨트롤 태그에 특성을 할당하여 사용자 코드의 적절한 콜백 메서드를 식별합니다.  
-
-// 자세한 내용은 Visual Studio Tools for Office 도움말에서 리본 XML 설명서를 참조하십시오.
-
-
 namespace ZebulonVSTO {
     [ComVisible(true)]
-    public class MainRibbon: Office.IRibbonExtensibility {
-        private Office.IRibbonUI ribbon;
+    public class MainRibbon : Office.IRibbonExtensibility {
+        private Office.IRibbonUI _ribbon;
+        private readonly Dictionary<string, bool> _enableMap;
 
-        private Dictionary<string, bool> pEnableMap;
-        
         private SyncManager SyncMng {
             get { return Globals.ThisAddIn.SyncMng; }
         }
 
         public MainRibbon() {
-            this.pEnableMap = new Dictionary<string, bool>();
+            _enableMap = new Dictionary<string, bool>();
         }
 
-        #region IRibbonExtensibility 멤버
+        #region IRibbonExtensibility members
 
         public string GetCustomUI(string ribbonID) {
             return GetResourceText("ZebulonVSTO.MainRibbon.xml");
@@ -50,47 +30,44 @@ namespace ZebulonVSTO {
 
         #endregion
 
-        #region 리본 콜백
-        //여기서 콜백 메서드를 만듭니다. 콜백 메서드를 추가하는 방법에 대한 자세한 내용은 https://go.microsoft.com/fwlink/?LinkID=271226을 참조하세요.
+        #region Ribbon callbacks
+
         public bool GetEnabled(IRibbonControl c) {
-            string strCompID = c.Id;
-            bool bRet = false;
-            if (!this.pEnableMap.TryGetValue(strCompID, out bRet)) {
-                switch (strCompID) {
+            string controlId = c.Id;
+            bool enabled;
+            if (!_enableMap.TryGetValue(controlId, out enabled)) {
+                switch (controlId) {
                     case "DdMode":
                     case "EbLocalPort":
-                        bRet = true;
+                        enabled = true;
                         break;
                     case "BtnSync":
                     case "BtnConsole":
                     case "EbRemoteIP":
                     case "EbRemotePort":
-                        bRet = false;
+                        enabled = false;
                         break;
                 }
-                this.pEnableMap.Add(strCompID, bRet);
+                _enableMap.Add(controlId, enabled);
             }
-            return bRet;
+            return enabled;
         }
         public string GetImage(IRibbonControl c) {
-            string strCompID = c.Id;
-            switch (strCompID) {
+            switch (c.Id) {
                 case "BtnSync":
                     return SyncMng.IsRunning() ? "RecordingStop" : "Synchronize";
             }
             return "";
         }
         public string GetLabel(IRibbonControl c) {
-            string strCompID = c.Id;
-            switch (strCompID) {
+            switch (c.Id) {
                 case "BtnSync":
                     return SyncMng.IsRunning() ? "Stop Sync" : "Start Sync";
             }
             return "";
         }
         public string GetText(IRibbonControl c) {
-            string strCompID = c.Id;
-            switch (strCompID) {
+            switch (c.Id) {
                 case "EbLocalIP":
                     return SyncMng.LocalIP;
                 case "EbLocalPort":
@@ -102,31 +79,28 @@ namespace ZebulonVSTO {
             }
             return "";
         }
-        public void OnTextChange(IRibbonControl c, string strText) {
-            string strCompID = c.Id;
+        public void OnTextChange(IRibbonControl c, string text) {
+            string controlId = c.Id;
             try {
-                switch (strCompID) {
-                    case "EbLocalIP":
-                        SyncMng.LocalIP = strText;
-                        break;
+                switch (controlId) {
+                    // EbLocalIP is read-only (auto-detected); no setter case.
                     case "EbLocalPort":
-                        SyncMng.LocalPort = int.Parse(strText);
+                        SyncMng.LocalPort = int.Parse(text);
                         break;
                     case "EbRemoteIP":
-                        SyncMng.RemoteIP = strText;
+                        SyncMng.RemoteIP = text;
                         break;
                     case "EbRemotePort":
-                        SyncMng.RemotePort = int.Parse(strText);
+                        SyncMng.RemotePort = int.Parse(text);
                         break;
                 }
             } catch (Exception e) {
                 Console.WriteLine(e.ToString());
             }
-            this.ribbon.InvalidateControl(strCompID);
+            _ribbon.InvalidateControl(controlId);
         }
         public int GetSelectedItemIndex(IRibbonControl c) {
-            string strCompID = c.Id;
-            switch (strCompID) {
+            switch (c.Id) {
                 case "DdMode":
                     switch (SyncMng.Mode) {
                         case SyncManager.SyncMode.SENDER: return 0;
@@ -137,16 +111,15 @@ namespace ZebulonVSTO {
             return -1;
         }
         public void OnBtnAction(IRibbonControl c) {
-            string strCompID = c.Id;
-            switch (strCompID) {
+            switch (c.Id) {
                 case "BtnSync":
                     if (SyncMng.IsRunning()) {
                         Globals.ThisAddIn.HideSyncConsole();
                         SyncMng.StopSync();
-                        updateSyncSettingUI();
+                        UpdateSyncSettingsUI();
                     } else {
                         if (SyncMng.StartSync()) {
-                            updateSyncSettingUI();
+                            UpdateSyncSettingsUI();
                         }
                     }
                     break;
@@ -158,12 +131,10 @@ namespace ZebulonVSTO {
                     break;
             }
         }
-        public void OnDdAction(IRibbonControl c, string strSelectedID, int nSelectedIndex) {
-            string strCompID = c.Id;
-            switch (strCompID) {
+        public void OnDdAction(IRibbonControl c, string selectedId, int selectedIndex) {
+            switch (c.Id) {
                 case "DdMode":
-                    //MessageBox.Show("ID=" + strSelectedID + ", Index=" + nSelectedIndex);
-                    switch (strSelectedID) {
+                    switch (selectedId) {
                         case "ModeSender":
                             SyncMng.Mode = SyncManager.SyncMode.SENDER;
                             break;
@@ -174,37 +145,37 @@ namespace ZebulonVSTO {
                             SyncMng.Mode = SyncManager.SyncMode.NONE;
                             break;
                     }
-                    updateSyncSettingUI();
+                    UpdateSyncSettingsUI();
                     break;
             }
         }
 
-        private void updateSyncSettingUI() {
-            bool bRunning = SyncMng.IsRunning();
-            bool bSndMode = (SyncMng.Mode == SyncManager.SyncMode.SENDER);
-            bool bRcvMode = (SyncMng.Mode == SyncManager.SyncMode.RECEIVER);
-            updateEnableMap("BtnSync", bSndMode || bRcvMode);
-            updateEnableMap("BtnConsole", bRunning);
-            updateEnableMap("DdMode", !bRunning);
-            updateEnableMap("EbLocalPort", !bRunning);
-            updateEnableMap("EbRemoteIP", !bRunning && bSndMode);
-            updateEnableMap("EbRemotePort", !bRunning && bSndMode);
-            this.ribbon.Invalidate();
+        private void UpdateSyncSettingsUI() {
+            bool isRunning = SyncMng.IsRunning();
+            bool isSenderMode = SyncMng.Mode == SyncManager.SyncMode.SENDER;
+            bool isReceiverMode = SyncMng.Mode == SyncManager.SyncMode.RECEIVER;
+            UpdateEnableMap("BtnSync", isSenderMode || isReceiverMode);
+            UpdateEnableMap("BtnConsole", isRunning);
+            UpdateEnableMap("DdMode", !isRunning);
+            UpdateEnableMap("EbLocalPort", !isRunning);
+            UpdateEnableMap("EbRemoteIP", !isRunning && isSenderMode);
+            UpdateEnableMap("EbRemotePort", !isRunning && isSenderMode);
+            _ribbon.Invalidate();
         }
-        private void updateEnableMap(string strKey, bool bValue) {
-            if (this.pEnableMap.ContainsKey(strKey)) {
-                this.pEnableMap[strKey] = bValue;
+        private void UpdateEnableMap(string key, bool value) {
+            if (_enableMap.ContainsKey(key)) {
+                _enableMap[key] = value;
             } else {
-                this.pEnableMap.Add(strKey, bValue);
+                _enableMap.Add(key, value);
             }
         }
         public void Ribbon_Load(Office.IRibbonUI ribbonUI) {
-            this.ribbon = ribbonUI;
+            _ribbon = ribbonUI;
         }
 
         #endregion
 
-        #region 도우미
+        #region Helpers
 
         private static string GetResourceText(string resourceName) {
             Assembly asm = Assembly.GetExecutingAssembly();
