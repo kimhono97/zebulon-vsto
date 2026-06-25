@@ -108,8 +108,8 @@ tests/
 - **Wire format** (`Sync/Message.cs`): `SyncMessage` serialized as UTF-8 JSON via the framework **`DataContractJsonSerializer`** (no third-party package). Fields `SenderIP`, `SenderPort`, `ID`, `Type`, `Data` are pinned with `[DataMember(Name=...)]`. `MessageType` enum is `CUSTOM=0, REQUEST=1, RESPONSE=2`. **The field names are a frozen on-the-wire contract between instances — do NOT rename them** (member *order* in the JSON is irrelevant; parsing is by name). The `Serialized_ContainsFrozenWireFieldName` test guards this.
 - **Commands** (RECEIVER side): the raw command string is parsed by the pure `CommandParser.Parse` → `ParsedCommand` (`alert <text>`, `select <n>`, `showslide <n>`, `hideslide`; verbs case-insensitive via `ToLowerInvariant`). `SyncManager.ProcessRequest` switches on `ParsedCommand.Kind` and dispatches to `ISlideController`. RECEIVER always replies with a RESPONSE (`Success`/`Failed`).
 - **Threading**: a single **background** thread runs the blocking `UdpClient.Receive` loop. Shutdown is **cooperative** (no `Thread.Abort`): `StopSync` flips a `volatile bool`, calls `UdpClient.Close()` to unblock `Receive` (caught as `ObjectDisposedException`), then `Thread.Join`s. Message IDs use `Interlocked.Increment`. **Any PowerPoint Interop call triggered by a received message MUST be marshalled to the UI thread via `ThisAddIn`'s `Dispatcher`** (see `SelectSlide`/`ShowSlide`/`HideSlide`/`Alert`) — never call Interop directly from the receive thread.
-- **Ribbon** attaches to the built-in Add-Ins tab (`idMso="TabAddIns"`) relabeled **"Zebulon"** with groups `Info` and `Sync`. `MainRibbon.xml` (control IDs + `onAction`/`getEnabled`/… callback names) and `MainRibbon.cs` (callbacks) **must stay in sync**; the public callback method names are bound by the XML and must not be renamed. Adding a control means editing both, plus the `_enableMap` logic.
-- **`DebugMode`** (`ThisAddIn.cs`, currently `true`) gates whether the console may send custom (non-SENDER) commands; it is passed to `SyncManager.Attach`. Defaulting it to `false` is a deferred deployment task.
+- **Ribbon** attaches to the built-in Add-Ins tab (`idMso="TabAddIns"`) relabeled **"Zebulon"**, groups `GroupInfo`/`GroupSync` (Korean labels). It includes a status `labelControl` (`LblStatus`, rendered by `GetLabel`/`BuildStatusText`) and input validation in `OnTextChange` (port range 1–65535, IPv4-only remote IP) that surfaces errors in the status line rather than throwing. `MainRibbon.xml` (control IDs + `onAction`/`getEnabled`/… callback names) and `MainRibbon.cs` (callbacks) **must stay in sync**; the public callback method names are bound by the XML and must not be renamed. Adding a control means editing both, plus the `_enableMap` logic.
+- **`DebugMode`** (`ThisAddIn.cs`) gates whether the console may send custom (non-SENDER) commands; it is passed to `SyncManager.Attach`. It is **build-gated via `#if DEBUG`** — `true` in Debug, **`false` in Release** (the shipped build) — so production cannot inject console commands.
 
 ## Dependencies
 
@@ -120,9 +120,12 @@ tests/
 
 ## Deployment
 
-- Building **Release** emits the ClickOnce/VSTO deploy set into `bin/Release/`: `ZebulonVSTO.dll`, `ZebulonVSTO.dll.manifest`, `ZebulonVSTO.vsto`.
-- Manifests are Authenticode-signed (`SignManifests=true`) with the repo-tracked self-signed **`ZebulonVSTO_TemporaryKey.pfx`** (thumbprint `290E123AB16DDD9CF1C892FD8390BD530B40328E`). For production, replace it with a real code-signing certificate and update `ManifestCertificateThumbprint`.
-- Installs require the **VSTO 2010 Runtime** on the target machine.
+Release packaging is a **local** step — run `Build-Release.ps1` (the VSTO add-in can't build on hosted CI). It builds Release, exports the signing cert's public `.cer`, and bundles the output + `deploy/` templates + the `Tools/` diagnostic scripts (copied from `tests/manual/`) into `dist/ZebulonVSTO-<version>.zip` (gitignored).
+
+- Building **Release** emits the VSTO deploy set into `bin/Release/`: `ZebulonVSTO.dll`, `ZebulonVSTO.dll.manifest`, `ZebulonVSTO.vsto`, `ZebulonVSTO.dll.config`. `DebugMode` is `false` in Release.
+- **Install method** (per-user, no admin): `deploy/Install.ps1` trusts the bundled self-signed `.cer` (CurrentUser Root + TrustedPublisher), copies the add-in to `%LOCALAPPDATA%\ZebulonVSTO`, and registers it under `HKCU\Software\Microsoft\Office\PowerPoint\Addins\ZebulonVSTO` (`Manifest=…\ZebulonVSTO.vsto|vstolocal`, `LoadBehavior=3`). `deploy/Uninstall.ps1` reverses it. Update = re-run `Install.ps1` over a newer extracted package. Targets need the **VSTO 2010 Runtime**.
+- Manifests are Authenticode-signed (`SignManifests=true`) with the repo-tracked self-signed **`ZebulonVSTO_TemporaryKey.pfx`** (thumbprint `290E123AB16DDD9CF1C892FD8390BD530B40328E`). For production, replace it with a real code-signing certificate and update `ManifestCertificateThumbprint`; then only the exported `.cer` changes and the install flow is unchanged.
+- The deploy bundle ships its own operator-facing docs — `deploy/README.txt` (Korean) and `deploy/AGENTS.md` (English) — distinct from this repo-level file.
 
 ## Conventions & Cautions
 
@@ -150,8 +153,12 @@ Rationale: English agent-facing content improves token efficiency and agent comp
 
 `CLAUDE.md` and `GEMINI.md` are intentionally thin pointers to this file (per the [AGENTS.md convention](https://agents.md)). Keep them thin — put guidance here, not there.
 
-## Known Follow-Ups
+- **⚠ Signing certificate is EXPIRED — the deployment will not load until renewed.** The tracked `ZebulonVSTO_TemporaryKey.pfx` (thumbprint `290E…328E`, `CN=DESKTOP-R6A6QP8\RYO`) expired **2024-03-20**, and the manifests carry no RFC3161 timestamp, so the signed `.vsto`/`.dll.manifest` fail trust validation on any current machine regardless of importing the `.cer`. Before a real rollout: re-issue a code-signing cert (self-signed via `New-SelfSignedCertificate -Type CodeSigningCert -NotAfter (Get-Date).AddYears(5)`, or a real/internal-CA cert), update `ManifestCertificateThumbprint`, rebuild to re-sign, and re-export the `.cer` for the package. Add a trusted timestamp so future expiry doesn't invalidate already-signed manifests. (The install/packaging tooling itself is complete and verified — only the credential needs renewing.)
+- **`DebugMode` runtime config:** it is snapshotted into `SyncManager` at `Attach()`. Today it's build-gated (`#if DEBUG`), which is fine. If it ever becomes runtime-configurable, propagate changes to the manager (re-`Attach` or add an `AllowCustomCommands` setter) rather than relying on the startup value.
 
-- **Deployment hardening (not yet done):** `DebugMode` still defaults to `true` (allows console-issued custom commands); drive it from configuration and default to `false` for release. Note: `DebugMode` is currently snapshotted into `SyncManager` at `Attach()` startup — if it becomes runtime-configurable, propagate changes to the manager (re-`Attach` or add an `AllowCustomCommands` setter) rather than relying on the startup value. Replace the self-signed `ZebulonVSTO_TemporaryKey.pfx` with a real code-signing certificate.
-- **CI:** no pipeline yet. A GitHub Actions Windows runner does not ship the VSTO build targets by default, so a cloud full-build needs investigation; `dotnet test tests/ZebulonVSTO.Tests` runs anywhere and is the easy first CI step.
+## Done (recent)
+
+- **CI** (`.github/workflows/ci.yml`): runs `dotnet test tests/ZebulonVSTO.Tests` on `windows-latest` for pushes to main/update and PRs to main. The VSTO add-in build stays local (hosted runners lack the VSTO targets).
+- **Release packaging**: `Build-Release.ps1` + `deploy/` (see *Deployment*).
+- **`DebugMode`**: build-gated off in Release.
 - The previous `System.Text.Json` NU1903 advisory is **resolved** (dependency removed — see *Dependencies*).

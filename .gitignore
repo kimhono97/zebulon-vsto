@@ -10,6 +10,9 @@
 packages/
 *.nupkg
 
+# Release packaging output (produced by Build-Release.ps1)
+dist/
+
 # Visual Studio user-specific files
 *.user
 *.suo

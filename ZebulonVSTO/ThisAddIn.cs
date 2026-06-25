@@ -10,8 +10,14 @@ using ZebulonVSTO.Sync;
 namespace ZebulonVSTO {
     public partial class ThisAddIn : ISyncLogger, ISlideController {
         // Gates whether the console may send custom (non-SENDER) commands.
-        // TODO (deployment): drive from configuration and default to false.
+        // Tied to the build configuration: on in Debug, OFF in Release (the
+        // shipped/production build) since the DEBUG constant is only defined
+        // for Debug builds.
+#if DEBUG
         public bool DebugMode = true;
+#else
+        public bool DebugMode = false;
+#endif
 
         private SyncManager _syncManager;
         private SyncConsole _syncConsole;
