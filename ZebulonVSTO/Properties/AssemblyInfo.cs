@@ -11,7 +11,7 @@ using System.Security;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("ZebulonVSTO")]
-[assembly: AssemblyCopyright("Copyright © JYM PPT 2023")]
+[assembly: AssemblyCopyright("Copyright © 2023-2026 kimhono97")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
