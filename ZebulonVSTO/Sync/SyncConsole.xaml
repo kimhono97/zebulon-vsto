@@ -6,16 +6,34 @@
     xmlns:local="clr-namespace:ZebulonVSTO.Sync"
     mc:Ignorable="d"
     d:DesignHeight="450" d:DesignWidth="400"
-    Height="550" Width="500" MinHeight="550" MinWidth="500" Title="ZebulonVSTO Sync Console" ShowInTaskbar="False">
+    Height="550" Width="500" MinHeight="400" MinWidth="420" Title="ZebulonVSTO 동기화 콘솔" ShowInTaskbar="False">
     <Grid Background="#FF3E3B52">
         <Grid.RowDefinitions>
-            <RowDefinition Height="197*"/>
-            <RowDefinition Height="15*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <ScrollViewer x:Name="LogScrollViewer" Margin="10,10,10,10">
-            <TextBox x:Name="LogTextBox" Background="Black" Foreground="White" SelectionBrush="#FF585858" Margin="0,0,0,-3" FontFamily="Consolas" Padding="1,0,0,0" AcceptsReturn="True" AcceptsTab="True" IsReadOnly="True"/>
-        </ScrollViewer>
-        <TextBox x:Name="CommandTextBox" Margin="10,0,60,10" Grid.Row="1" TextWrapping="Wrap" Background="#FF2B2B2B" Foreground="White" FontFamily="Consolas" FontSize="14" ToolTip="Commands are ASCII; the IME starts off here. Toggle it on (Han/Yeong) only for Korean alert text." IsTabStop="False" AutomationProperties.IsColumnHeader="True" InputMethod.PreferredImeState="Off" KeyDown="CommandTextBox_KeyDown"/>
-        <Button Content="Enter" Grid.Row="1" Margin="0,0,10,10" Width="50" HorizontalAlignment="Right" FontWeight="Bold" FontFamily="Consolas" Click="EnterButton_Click"/>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10,10,10,0">
+            <Button x:Name="ClearButton" Content="지우기" Width="60" Margin="0,0,6,0" FontFamily="Malgun Gothic" Click="ClearButton_Click"/>
+            <Button x:Name="CopyButton" Content="복사" Width="60" FontFamily="Malgun Gothic" Click="CopyButton_Click"/>
+        </StackPanel>
+
+        <RichTextBox x:Name="LogRichTextBox" Grid.Row="1" Margin="10,8,10,8"
+                     Background="Black" Foreground="White" FontFamily="Consolas"
+                     IsReadOnly="True" IsReadOnlyCaretVisible="False"
+                     VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"/>
+
+        <Grid Grid.Row="2" Margin="10,0,10,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="CommandTextBox" Grid.Column="0" Margin="0,0,6,0" TextWrapping="Wrap"
+                     Background="#FF2B2B2B" Foreground="White" FontFamily="Consolas" FontSize="14"
+                     IsTabStop="False" InputMethod.PreferredImeState="Off" KeyDown="CommandTextBox_KeyDown"/>
+            <Button x:Name="EnterButton" Grid.Column="1" Content="전송" Width="60" FontWeight="Bold"
+                    FontFamily="Malgun Gothic" Click="EnterButton_Click"/>
+        </Grid>
     </Grid>
 </Window>

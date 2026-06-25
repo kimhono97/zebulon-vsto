@@ -1,29 +1,31 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui" onLoad="Ribbon_Load">
   <ribbon>
     <tabs>
       <tab idMso="TabAddIns" label="Zebulon">
-		  <group id="GroupInfo" label="Info">
-			  <button id="BtnAbout" label="About Zebulon" size="large" imageMso="Info" onAction="OnBtnAction"/>
+		  <group id="GroupInfo" label="정보">
+			  <button id="BtnAbout" label="Zebulon 정보" size="large" imageMso="Info" onAction="OnBtnAction"/>
 		  </group>
-		  <group id="GroupSync" label="Sync">
+		  <group id="GroupSync" label="동기화">
 			  <button id="BtnSync" size="large" getEnabled="GetEnabled" getImage="GetImage" getLabel="GetLabel" onAction="OnBtnAction"/>
 			  <box id="BoxLocalSettings" boxStyle="vertical">
-				  <dropDown id="DdMode" label="Mode" getEnabled="GetEnabled" onAction="OnDdAction" getSelectedItemIndex="GetSelectedItemIndex">
-					  <item id="ModeSender" label="Sender"/>
-					  <item id="ModeReceiver" label="Receiver"/>
+				  <dropDown id="DdMode" label="모드" getEnabled="GetEnabled" onAction="OnDdAction" getSelectedItemIndex="GetSelectedItemIndex">
+					  <item id="ModeSender" label="송신"/>
+					  <item id="ModeReceiver" label="수신"/>
 				  </dropDown>
-				  <editBox id="EbLocalIP" label="Local IP" enabled="false" getText="GetText" onChange="OnTextChange"/>
-				  <editBox id="EbLocalPort" label="Local Port" getEnabled="GetEnabled" getText="GetText" onChange="OnTextChange"/>
+				  <editBox id="EbLocalIP" label="로컬 IP" enabled="false" getText="GetText" onChange="OnTextChange"/>
+				  <editBox id="EbLocalPort" label="로컬 포트" getEnabled="GetEnabled" getText="GetText" onChange="OnTextChange"/>
 			  </box >
 			  <box id="BoxRemoteSettings" boxStyle="vertical">
-				  <button id="BtnConsole" size="normal" label="Console" imageMso="ActiveXTextBox" getEnabled="GetEnabled" onAction="OnBtnAction"/>
-				  <editBox id="EbRemoteIP" label="Remote IP" getEnabled="GetEnabled" getText="GetText" onChange="OnTextChange"/>
-				  <editBox id="EbRemotePort" label="Remote Port" getEnabled="GetEnabled" getText="GetText" onChange="OnTextChange"/>
+				  <button id="BtnConsole" size="normal" label="콘솔" imageMso="ActiveXTextBox" getEnabled="GetEnabled" onAction="OnBtnAction"/>
+				  <editBox id="EbRemoteIP" label="원격 IP" getEnabled="GetEnabled" getText="GetText" onChange="OnTextChange"/>
+				  <editBox id="EbRemotePort" label="원격 포트" getEnabled="GetEnabled" getText="GetText" onChange="OnTextChange"/>
+			  </box>
+			  <box id="BoxStatus" boxStyle="vertical">
+				  <labelControl id="LblStatus" getLabel="GetLabel"/>
 			  </box>
 		  </group>
       </tab>
     </tabs>
   </ribbon>
 </customUI>
-

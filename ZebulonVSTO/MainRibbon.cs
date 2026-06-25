@@ -2,6 +2,8 @@ using Microsoft.Office.Core;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
+using System.Net.Sockets;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Office = Microsoft.Office.Core;
@@ -13,6 +15,10 @@ namespace ZebulonVSTO {
     public class MainRibbon : Office.IRibbonExtensibility {
         private Office.IRibbonUI _ribbon;
         private readonly Dictionary<string, bool> _enableMap;
+
+        // Transient status/error shown in the ribbon's status label; cleared on
+        // the next Start/Stop or settings change.
+        private string _statusMessage;
 
         private SyncManager SyncMng {
             get { return Globals.ThisAddIn.SyncMng; }
@@ -57,12 +63,14 @@ namespace ZebulonVSTO {
                 case "BtnSync":
                     return SyncMng.IsRunning() ? "RecordingStop" : "Synchronize";
             }
-            return "";
+            return null; // 'no image' rather than an invalid imageMso lookup
         }
         public string GetLabel(IRibbonControl c) {
             switch (c.Id) {
                 case "BtnSync":
-                    return SyncMng.IsRunning() ? "Stop Sync" : "Start Sync";
+                    return SyncMng.IsRunning() ? "동기화 중지" : "동기화 시작";
+                case "LblStatus":
+                    return BuildStatusText();
             }
             return "";
         }
@@ -80,24 +88,38 @@ namespace ZebulonVSTO {
             return "";
         }
         public void OnTextChange(IRibbonControl c, string text) {
-            string controlId = c.Id;
-            try {
-                switch (controlId) {
-                    // EbLocalIP is read-only (auto-detected); no setter case.
-                    case "EbLocalPort":
-                        SyncMng.LocalPort = int.Parse(text);
-                        break;
-                    case "EbRemoteIP":
-                        SyncMng.RemoteIP = text;
-                        break;
-                    case "EbRemotePort":
-                        SyncMng.RemotePort = int.Parse(text);
-                        break;
+            _statusMessage = null;
+            switch (c.Id) {
+                // EbLocalIP is read-only (auto-detected); no setter case.
+                case "EbLocalPort": {
+                    int port;
+                    if (TryParsePort(text, out port)) {
+                        SyncMng.LocalPort = port;
+                    } else {
+                        _statusMessage = "⚠ 잘못된 로컬 포트 (1–65535)";
+                    }
+                    break;
                 }
-            } catch (Exception e) {
-                Console.WriteLine(e.ToString());
+                case "EbRemoteIP": {
+                    IPAddress address;
+                    if (IPAddress.TryParse(text, out address) && address.AddressFamily == AddressFamily.InterNetwork) {
+                        SyncMng.RemoteIP = text;
+                    } else {
+                        _statusMessage = "⚠ 잘못된 원격 IP (IPv4만)";
+                    }
+                    break;
+                }
+                case "EbRemotePort": {
+                    int port;
+                    if (TryParsePort(text, out port)) {
+                        SyncMng.RemotePort = port;
+                    } else {
+                        _statusMessage = "⚠ 잘못된 원격 포트 (1–65535)";
+                    }
+                    break;
+                }
             }
-            _ribbon.InvalidateControl(controlId);
+            _ribbon?.Invalidate();
         }
         public int GetSelectedItemIndex(IRibbonControl c) {
             switch (c.Id) {
@@ -113,15 +135,14 @@ namespace ZebulonVSTO {
         public void OnBtnAction(IRibbonControl c) {
             switch (c.Id) {
                 case "BtnSync":
+                    _statusMessage = null;
                     if (SyncMng.IsRunning()) {
                         Globals.ThisAddIn.HideSyncConsole();
                         SyncMng.StopSync();
-                        UpdateSyncSettingsUI();
-                    } else {
-                        if (SyncMng.StartSync()) {
-                            UpdateSyncSettingsUI();
-                        }
+                    } else if (!SyncMng.StartSync()) {
+                        _statusMessage = "⚠ 시작 실패 — 포트 사용 중일 수 있음";
                     }
+                    UpdateSyncSettingsUI();
                     break;
                 case "BtnAbout":
                     Globals.ThisAddIn.ShowInfoDlg();
@@ -134,6 +155,7 @@ namespace ZebulonVSTO {
         public void OnDdAction(IRibbonControl c, string selectedId, int selectedIndex) {
             switch (c.Id) {
                 case "DdMode":
+                    _statusMessage = null;
                     switch (selectedId) {
                         case "ModeSender":
                             SyncMng.Mode = SyncManager.SyncMode.SENDER;
@@ -168,6 +190,21 @@ namespace ZebulonVSTO {
             } else {
                 _enableMap.Add(key, value);
             }
+        }
+        private string BuildStatusText() {
+            if (!string.IsNullOrEmpty(_statusMessage)) {
+                return _statusMessage;
+            }
+            if (!SyncMng.IsRunning()) {
+                return "○ 중지됨";
+            }
+            if (SyncMng.Mode == SyncManager.SyncMode.RECEIVER) {
+                return "● 수신 · " + SyncMng.LocalPort;
+            }
+            return "● 송신 · →" + SyncMng.RemoteIP + ":" + SyncMng.RemotePort;
+        }
+        private static bool TryParsePort(string text, out int port) {
+            return int.TryParse(text, out port) && port >= 1 && port <= 65535;
         }
         public void Ribbon_Load(Office.IRibbonUI ribbonUI) {
             _ribbon = ribbonUI;
