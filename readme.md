@@ -25,19 +25,10 @@
 
     - PowerPorint 2013+
 
-    - NuGet Packages
+    - 외부 NuGet 패키지 의존성 없음 (프레임워크 전용)
 
-    ```
-    Microsoft.Bcl.AsyncInterfaces
-    System.Buffers
-    System.Memory
-    System.Numerics.Vectors
-    System.Runtime.CompilerServices.Unsafe
-    System.Text.Encodings.Web
-    System.Text.Json
-    System.Threading.Tasks.Extensions
-    System.ValueTuple
-    ```
+      JSON 직렬화는 .NET Framework 내장 `System.Runtime.Serialization`
+      (`DataContractJsonSerializer`)을 사용합니다. 별도의 NuGet 복원이 필요 없습니다.
 
 
 ### II. Features
@@ -64,10 +55,7 @@
 2. 명령줄 빌드 (CI / 빠른 검증용)
 
     ```bash
-    # NuGet 복원 (packages.config 방식)
-    msbuild ZebulonVSTO.sln -t:restore -p:RestorePackagesConfig=true
-
-    # 빌드
+    # 빌드 (NuGet 복원 불필요 — 외부 패키지 의존성 없음)
     msbuild ZebulonVSTO.sln -p:Configuration=Release -p:VisualStudioVersion=10.0
     ```
 
@@ -75,6 +63,19 @@
     > 설정하지만, VSTO 빌드 타겟(`OfficeTools`)은 `v10.0` 경로에 설치됩니다.
     > 따라서 CLI 빌드 시 `-p:VisualStudioVersion=10.0`을 명시해야 합니다.
     > Visual Studio IDE(F5/빌드)에서는 이 설정이 자동 처리되므로 신경 쓸 필요 없습니다.
+
+3. 단위 테스트
+
+    순수 로직(명령 파서, 메시지 직렬화)에 대한 xUnit 테스트는 `tests/ZebulonVSTO.Tests`에 있습니다.
+
+    ```bash
+    dotnet test tests/ZebulonVSTO.Tests
+    ```
+
+    - 테스트 프로젝트는 SDK 스타일(`net472`)이며 `ZebulonVSTO.sln`에 포함되지 않습니다.
+      VSTO/MSBuild 빌드와 독립적으로 `dotnet` 툴체인으로 빌드·실행됩니다.
+    - PowerPoint/COM이 필요한 부분(`SyncManager` 통신, 슬라이드 동작)은 단위 테스트 대상이
+      아니며, 위의 F5 방식으로 수동 검증합니다.
 
 
 ### IV. Deployment

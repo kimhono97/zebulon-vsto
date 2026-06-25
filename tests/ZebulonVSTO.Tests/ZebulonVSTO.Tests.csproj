@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!--
+      The add-in (ZebulonVSTO.csproj) is a legacy non-SDK VSTO project that can
+      only be built by MSBuild/Visual Studio. Rather than ProjectReference it
+      (which would drag the whole VSTO toolchain into `dotnet test`), we link
+      the pure, COM-free source files directly into this test assembly. This
+      keeps the test build self-contained and CI-friendly.
+    -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Runtime.Serialization" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\ZebulonVSTO\Sync\SyncDefaults.cs" Link="UnderTest\SyncDefaults.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Sync\CommandParser.cs" Link="UnderTest\CommandParser.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Sync\Message.cs" Link="UnderTest\Message.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <!-- Supplies net472 reference assemblies without requiring the targeting
+         pack to be installed (important for clean/CI machines). -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

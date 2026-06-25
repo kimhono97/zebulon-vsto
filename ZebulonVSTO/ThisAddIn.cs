@@ -1,163 +1,208 @@
-﻿using System;
-using System.Windows.Forms;
+using System;
 using System.Diagnostics;
+using System.Reflection;
+using System.Windows.Forms;
 using System.Windows.Threading;
 using Microsoft.Office.Interop.PowerPoint;
 
 using ZebulonVSTO.Sync;
 
 namespace ZebulonVSTO {
-    public partial class ThisAddIn {
-        public bool DEBUG_MODE = true;
+    public partial class ThisAddIn : ISyncLogger, ISlideController {
+        // Gates whether the console may send custom (non-SENDER) commands.
+        // Tied to the build configuration: on in Debug, OFF in Release (the
+        // shipped/production build) since the DEBUG constant is only defined
+        // for Debug builds.
+#if DEBUG
+        public bool DebugMode = true;
+#else
+        public bool DebugMode = false;
+#endif
 
-        private SyncManager pSMng = null;
-        private SyncConsole pSCsl = null;
-        private Dispatcher pDispatcher = null;
+        private SyncManager _syncManager;
+        private SyncConsole _syncConsole;
+        private Dispatcher _dispatcher;
 
-        private int nSlideShowWndIndex = -1;
+        private int _slideShowWindowIndex = -1;
+
         public SyncManager SyncMng {
-            get { return this.pSMng; }
+            get { return _syncManager; }
         }
 
         public void ShowInfoDlg() {
-            System.Reflection.Assembly pAssembly = System.Reflection.Assembly.GetExecutingAssembly();
-            FileVersionInfo pInfo = FileVersionInfo.GetVersionInfo(pAssembly.Location);
-            
-            string strInfo = (" * Name\t\t: " + pInfo.ProductName + "");
-            strInfo += ("\n * Version\t: " + pInfo.ProductVersion);
-            strInfo += ("\n * Copyright\t: " + pInfo.LegalCopyright);
+            Assembly assembly = Assembly.GetExecutingAssembly();
+            FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(assembly.Location);
 
-            MessageBox.Show(strInfo, "About");
+            string info = " * Name\t\t: " + versionInfo.ProductName;
+            info += "\n * Version\t: " + versionInfo.ProductVersion;
+            info += "\n * Copyright\t: " + versionInfo.LegalCopyright;
+
+            MessageBox.Show(info, "About");
         }
         public void ShowSyncConsole() {
-            this.pSCsl = new SyncConsole(this.pSCsl);
-            this.pSCsl.OpenWindow();
+            _syncConsole = new SyncConsole(_syncConsole);
+            _syncConsole.OpenWindow();
         }
         public void HideSyncConsole() {
-            this.pSCsl.CloseWindow();
-        }
-        public void LogDebug(string strLine) {
-            this.pSCsl.AppendLogLine(strLine);
-        }
-        public void LogError(string strMsg, Exception e) {
-            this.pSCsl.AppendLogLine("<!> ERROR : " + strMsg + "\n" + e.ToString());
+            _syncConsole?.CloseWindow();
         }
 
-        private SlideShowWindow GetCurrentSlideShowWnd() {
-            if (this.nSlideShowWndIndex < 1 || this.nSlideShowWndIndex > this.Application.SlideShowWindows.Count) {
-                this.nSlideShowWndIndex = -1;
+        #region ISyncLogger
+
+        public void Log(string line) {
+            _syncConsole?.AppendLogLine(line);
+        }
+        public void LogError(string message, Exception error) {
+            _syncConsole?.AppendLogLine("<!> ERROR : " + message + "\n" + error);
+        }
+
+        #endregion
+
+        private SlideShowWindow GetCurrentSlideShowWindow() {
+            if (_slideShowWindowIndex < 1 || _slideShowWindowIndex > Application.SlideShowWindows.Count) {
+                _slideShowWindowIndex = -1;
                 return null;
             }
-            return this.Application.SlideShowWindows[this.nSlideShowWndIndex];
+            return Application.SlideShowWindows[_slideShowWindowIndex];
         }
-        private void SetCurrentSlideShowWnd(SlideShowWindow pWnd) {
-            for (int i = 0; i < this.Application.SlideShowWindows.Count; i++) {
-                if (pWnd.Equals(this.Application.SlideShowWindows[i + 1])) {
-                    this.nSlideShowWndIndex = i + 1;
+        private void SetCurrentSlideShowWindow(SlideShowWindow window) {
+            for (int i = 0; i < Application.SlideShowWindows.Count; i++) {
+                if (window.Equals(Application.SlideShowWindows[i + 1])) {
+                    _slideShowWindowIndex = i + 1;
                     return;
                 }
             }
         }
-        private void OnSelectSlide(SlideRange pRange) {
-            int nIndex = pRange.SlideIndex;
-            LogDebug("[Event] SelectSlide " + nIndex.ToString());
-            this.pSMng.SendRequestMessage("select " + nIndex.ToString());
-        }
-        private void OnSlideShow(SlideShowWindow pWnd) {
-            int nIndex = pWnd.View.Slide.SlideIndex;
-            LogDebug("[Event] SlideShow " + nIndex.ToString());
-            this.pSMng.SendRequestMessage("showslide " + nIndex.ToString());
 
-            if (pWnd != GetCurrentSlideShowWnd()) {
-                SetCurrentSlideShowWnd(pWnd);
+        private void OnSelectSlide(SlideRange range) {
+            int index = range.SlideIndex;
+            Log("[Event] SelectSlide " + index);
+            _syncManager.SendRequestMessage("select " + index);
+        }
+        private void OnSlideShow(SlideShowWindow window) {
+            int index = window.View.Slide.SlideIndex;
+            Log("[Event] SlideShow " + index);
+            _syncManager.SendRequestMessage("showslide " + index);
+
+            if (window != GetCurrentSlideShowWindow()) {
+                SetCurrentSlideShowWindow(window);
             }
         }
-        private void OnSlideShowEnd(Presentation pPres) {
-            LogDebug("[Event] SlideShowEnd");
-            this.pSMng.SendRequestMessage("hideslide");
-            this.nSlideShowWndIndex = -1;
+        private void OnSlideShowEnd(Presentation presentation) {
+            Log("[Event] SlideShowEnd");
+            _syncManager.SendRequestMessage("hideslide");
+            _slideShowWindowIndex = -1;
         }
-        public bool DoSelectSlide(int nSlideIndex) {
-            bool bRet = false;
+
+        #region ISlideController
+
+        public bool SelectSlide(int slideIndex) {
+            if (_dispatcher == null) {
+                return false;
+            }
+            bool result = false;
             try {
-                this.pDispatcher.Invoke(() => {
-                    Presentation pPres = this.Application.ActivePresentation;
-                    if (pPres != null) {
-                        nSlideIndex = Math.Min(Math.Max(nSlideIndex, 1), pPres.Slides.Count);
-                        pPres.Slides[nSlideIndex].Select();
-                        bRet = true;
+                _dispatcher.Invoke(() => {
+                    Presentation presentation = Application.ActivePresentation;
+                    if (presentation != null) {
+                        slideIndex = Math.Min(Math.Max(slideIndex, 1), presentation.Slides.Count);
+                        presentation.Slides[slideIndex].Select();
+                        result = true;
                     }
                 });
             } catch (Exception e) {
-                LogError(String.Format("Failed to select slide {0}.", nSlideIndex), e);
+                LogError(string.Format("Failed to select slide {0}.", slideIndex), e);
             }
-            return bRet;
+            return result;
         }
-        public bool DoSlideShow(int nSlideIndex) {
-            bool bRet = false;
+        public bool ShowSlide(int slideIndex) {
+            if (_dispatcher == null) {
+                return false;
+            }
+            bool result = false;
             try {
-                this.pDispatcher.Invoke(() => {
-                    SlideShowWindow pWnd = GetCurrentSlideShowWnd();
-                    if (pWnd == null && this.Application.ActivePresentation != null) {
-                        pWnd = this.Application.ActivePresentation.SlideShowSettings.Run();
-                        SetCurrentSlideShowWnd(pWnd);
+                _dispatcher.Invoke(() => {
+                    SlideShowWindow window = GetCurrentSlideShowWindow();
+                    if (window == null && Application.ActivePresentation != null) {
+                        window = Application.ActivePresentation.SlideShowSettings.Run();
+                        SetCurrentSlideShowWindow(window);
                     }
-                    if (pWnd != null) {
-                        nSlideIndex = Math.Min(Math.Max(nSlideIndex, 1), pWnd.Presentation.Slides.Count);
-                        pWnd.View.GotoSlide(nSlideIndex);
-                        bRet = true;
+                    if (window != null) {
+                        slideIndex = Math.Min(Math.Max(slideIndex, 1), window.Presentation.Slides.Count);
+                        window.View.GotoSlide(slideIndex);
+                        result = true;
                     }
                 });
             } catch (Exception e) {
-                LogError(String.Format("Failed to start slide show {0}.", nSlideIndex), e);
+                LogError(string.Format("Failed to start slide show {0}.", slideIndex), e);
             }
-            return bRet;
+            return result;
         }
-        public bool DoSlideShowEnd() {
-            bool bRet = false;
+        public bool HideSlide() {
+            if (_dispatcher == null) {
+                return false;
+            }
+            bool result = false;
             try {
-                this.pDispatcher.Invoke(() => {
-                    SlideShowWindow pWnd = GetCurrentSlideShowWnd();
-                    if (pWnd != null) {
-                        pWnd.View.Exit();
-                        bRet = true;
+                _dispatcher.Invoke(() => {
+                    SlideShowWindow window = GetCurrentSlideShowWindow();
+                    if (window != null) {
+                        window.View.Exit();
+                        result = true;
                     }
-                    this.nSlideShowWndIndex = -1;
+                    _slideShowWindowIndex = -1;
                 });
             } catch (Exception e) {
-                LogError(String.Format("Failed to finish slide show."), e);
+                LogError("Failed to finish slide show.", e);
             }
-            return bRet;
+            return result;
+        }
+        public bool Alert(string sender, string text) {
+            if (_dispatcher == null) {
+                return false;
+            }
+            bool result = false;
+            try {
+                _dispatcher.Invoke(() => {
+                    result = MessageBox.Show(text, sender) == DialogResult.OK;
+                });
+            } catch (Exception e) {
+                LogError("Failed to show alert.", e);
+            }
+            return result;
         }
 
-        private void ThisAddIn_Startup(object sender, System.EventArgs e) {
-            this.pSMng = SyncManager.GetInstance();
-            this.pSCsl = new SyncConsole();
-            this.pDispatcher = Dispatcher.CurrentDispatcher;
+        #endregion
 
-            this.nSlideShowWndIndex = -1;
+        private void ThisAddIn_Startup(object sender, EventArgs e) {
+            _syncManager = SyncManager.GetInstance();
+            _syncManager.Attach(this, this, DebugMode);
+            _syncConsole = new SyncConsole();
+            _dispatcher = Dispatcher.CurrentDispatcher;
 
-            this.Application.SlideShowEnd += this.OnSlideShowEnd;
-            this.Application.SlideShowNextSlide += this.OnSlideShow;
-            this.Application.SlideSelectionChanged += this.OnSelectSlide;
+            _slideShowWindowIndex = -1;
+
+            Application.SlideShowEnd += OnSlideShowEnd;
+            Application.SlideShowNextSlide += OnSlideShow;
+            Application.SlideSelectionChanged += OnSelectSlide;
         }
-        private void ThisAddIn_Shutdown(object sender, System.EventArgs e) {
-            if (this.pSMng.IsRunning()) {
-                this.pSMng.StopSync();
+        private void ThisAddIn_Shutdown(object sender, EventArgs e) {
+            if (_syncManager != null && _syncManager.IsRunning()) {
+                _syncManager.StopSync();
             }
-            this.pSCsl = null;
-            this.pDispatcher = null;
+            _syncConsole = null;
+            _dispatcher = null;
         }
 
         protected override Microsoft.Office.Core.IRibbonExtensibility CreateRibbonExtensibilityObject() {
             return new MainRibbon();
         }
 
-        #region VSTO에서 생성한 코드
+        #region VSTO generated code
 
         /// <summary>
-        /// 디자이너 지원에 필요한 메서드입니다. 
-        /// 이 메서드의 내용을 코드 편집기로 수정하지 마세요.
+        /// Required method for Designer support — do not modify
+        /// the contents of this method with the code editor.
         /// </summary>
         private void InternalStartup() {
             this.Startup += new System.EventHandler(ThisAddIn_Startup);

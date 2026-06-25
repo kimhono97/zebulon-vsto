@@ -5,9 +5,13 @@
 [Rr]elease/
 [Bb]uild/
 
-# NuGet packages (restored via packages.config)
+# NuGet packages (the add-in itself has no packages; kept as a safety net for
+# the test project's restore and any legacy restored folder)
 packages/
 *.nupkg
+
+# Release packaging output (produced by Build-Release.ps1)
+dist/
 
 # Visual Studio user-specific files
 *.user

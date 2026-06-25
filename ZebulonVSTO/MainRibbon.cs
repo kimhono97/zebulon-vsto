@@ -1,48 +1,34 @@
-﻿using Microsoft.Office.Core;
+using Microsoft.Office.Core;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
+using System.Net.Sockets;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Office = Microsoft.Office.Core;
 
 using ZebulonVSTO.Sync;
 
-// TODO:  리본(XML) 항목을 설정하려면 다음 단계를 수행하십시오:
-
-// 1. 다음 코드 블록을 ThisAddin, ThisWorkbook 또는 ThisDocument 클래스에 복사합니다.
-
-//  protected override Microsoft.Office.Core.IRibbonExtensibility CreateRibbonExtensibilityObject()
-//  {
-//      return new MainRibbon();
-//  }
-
-// 2. 단추 클릭 등의 사용자 작업을 처리하려면 이 클래스의 "리본 콜백" 영역에서 콜백
-//    메서드를 만듭니다. 참고: 리본 디자이너에서 이 리본을 내보낸 경우 이벤트 처리기의 코드를
-//    콜백 메서드로 이동하고 리본 확장성(RibbonX) 프로그래밍 모델에서 사용할 수 있도록
-//    코드를 수정해야 합니다.
-
-// 3. 리본 XML 파일의 컨트롤 태그에 특성을 할당하여 사용자 코드의 적절한 콜백 메서드를 식별합니다.  
-
-// 자세한 내용은 Visual Studio Tools for Office 도움말에서 리본 XML 설명서를 참조하십시오.
-
-
 namespace ZebulonVSTO {
     [ComVisible(true)]
-    public class MainRibbon: Office.IRibbonExtensibility {
-        private Office.IRibbonUI ribbon;
+    public class MainRibbon : Office.IRibbonExtensibility {
+        private Office.IRibbonUI _ribbon;
+        private readonly Dictionary<string, bool> _enableMap;
 
-        private Dictionary<string, bool> pEnableMap;
-        
+        // Transient status/error shown in the ribbon's status label; cleared on
+        // the next Start/Stop or settings change.
+        private string _statusMessage;
+
         private SyncManager SyncMng {
             get { return Globals.ThisAddIn.SyncMng; }
         }
 
         public MainRibbon() {
-            this.pEnableMap = new Dictionary<string, bool>();
+            _enableMap = new Dictionary<string, bool>();
         }
 
-        #region IRibbonExtensibility 멤버
+        #region IRibbonExtensibility members
 
         public string GetCustomUI(string ribbonID) {
             return GetResourceText("ZebulonVSTO.MainRibbon.xml");
@@ -50,47 +36,46 @@ namespace ZebulonVSTO {
 
         #endregion
 
-        #region 리본 콜백
-        //여기서 콜백 메서드를 만듭니다. 콜백 메서드를 추가하는 방법에 대한 자세한 내용은 https://go.microsoft.com/fwlink/?LinkID=271226을 참조하세요.
+        #region Ribbon callbacks
+
         public bool GetEnabled(IRibbonControl c) {
-            string strCompID = c.Id;
-            bool bRet = false;
-            if (!this.pEnableMap.TryGetValue(strCompID, out bRet)) {
-                switch (strCompID) {
+            string controlId = c.Id;
+            bool enabled;
+            if (!_enableMap.TryGetValue(controlId, out enabled)) {
+                switch (controlId) {
                     case "DdMode":
                     case "EbLocalPort":
-                        bRet = true;
+                        enabled = true;
                         break;
                     case "BtnSync":
                     case "BtnConsole":
                     case "EbRemoteIP":
                     case "EbRemotePort":
-                        bRet = false;
+                        enabled = false;
                         break;
                 }
-                this.pEnableMap.Add(strCompID, bRet);
+                _enableMap.Add(controlId, enabled);
             }
-            return bRet;
+            return enabled;
         }
         public string GetImage(IRibbonControl c) {
-            string strCompID = c.Id;
-            switch (strCompID) {
+            switch (c.Id) {
                 case "BtnSync":
                     return SyncMng.IsRunning() ? "RecordingStop" : "Synchronize";
             }
-            return "";
+            return null; // 'no image' rather than an invalid imageMso lookup
         }
         public string GetLabel(IRibbonControl c) {
-            string strCompID = c.Id;
-            switch (strCompID) {
+            switch (c.Id) {
                 case "BtnSync":
-                    return SyncMng.IsRunning() ? "Stop Sync" : "Start Sync";
+                    return SyncMng.IsRunning() ? "동기화 중지" : "동기화 시작";
+                case "LblStatus":
+                    return BuildStatusText();
             }
             return "";
         }
         public string GetText(IRibbonControl c) {
-            string strCompID = c.Id;
-            switch (strCompID) {
+            switch (c.Id) {
                 case "EbLocalIP":
                     return SyncMng.LocalIP;
                 case "EbLocalPort":
@@ -102,31 +87,42 @@ namespace ZebulonVSTO {
             }
             return "";
         }
-        public void OnTextChange(IRibbonControl c, string strText) {
-            string strCompID = c.Id;
-            try {
-                switch (strCompID) {
-                    case "EbLocalIP":
-                        SyncMng.LocalIP = strText;
-                        break;
-                    case "EbLocalPort":
-                        SyncMng.LocalPort = int.Parse(strText);
-                        break;
-                    case "EbRemoteIP":
-                        SyncMng.RemoteIP = strText;
-                        break;
-                    case "EbRemotePort":
-                        SyncMng.RemotePort = int.Parse(strText);
-                        break;
+        public void OnTextChange(IRibbonControl c, string text) {
+            _statusMessage = null;
+            switch (c.Id) {
+                // EbLocalIP is read-only (auto-detected); no setter case.
+                case "EbLocalPort": {
+                    int port;
+                    if (TryParsePort(text, out port)) {
+                        SyncMng.LocalPort = port;
+                    } else {
+                        _statusMessage = "⚠ 잘못된 로컬 포트 (1–65535)";
+                    }
+                    break;
                 }
-            } catch (Exception e) {
-                Console.WriteLine(e.ToString());
+                case "EbRemoteIP": {
+                    IPAddress address;
+                    if (IPAddress.TryParse(text, out address) && address.AddressFamily == AddressFamily.InterNetwork) {
+                        SyncMng.RemoteIP = text;
+                    } else {
+                        _statusMessage = "⚠ 잘못된 원격 IP (IPv4만)";
+                    }
+                    break;
+                }
+                case "EbRemotePort": {
+                    int port;
+                    if (TryParsePort(text, out port)) {
+                        SyncMng.RemotePort = port;
+                    } else {
+                        _statusMessage = "⚠ 잘못된 원격 포트 (1–65535)";
+                    }
+                    break;
+                }
             }
-            this.ribbon.InvalidateControl(strCompID);
+            _ribbon?.Invalidate();
         }
         public int GetSelectedItemIndex(IRibbonControl c) {
-            string strCompID = c.Id;
-            switch (strCompID) {
+            switch (c.Id) {
                 case "DdMode":
                     switch (SyncMng.Mode) {
                         case SyncManager.SyncMode.SENDER: return 0;
@@ -137,18 +133,16 @@ namespace ZebulonVSTO {
             return -1;
         }
         public void OnBtnAction(IRibbonControl c) {
-            string strCompID = c.Id;
-            switch (strCompID) {
+            switch (c.Id) {
                 case "BtnSync":
+                    _statusMessage = null;
                     if (SyncMng.IsRunning()) {
                         Globals.ThisAddIn.HideSyncConsole();
                         SyncMng.StopSync();
-                        updateSyncSettingUI();
-                    } else {
-                        if (SyncMng.StartSync()) {
-                            updateSyncSettingUI();
-                        }
+                    } else if (!SyncMng.StartSync()) {
+                        _statusMessage = "⚠ 시작 실패 — 포트 사용 중일 수 있음";
                     }
+                    UpdateSyncSettingsUI();
                     break;
                 case "BtnAbout":
                     Globals.ThisAddIn.ShowInfoDlg();
@@ -158,12 +152,11 @@ namespace ZebulonVSTO {
                     break;
             }
         }
-        public void OnDdAction(IRibbonControl c, string strSelectedID, int nSelectedIndex) {
-            string strCompID = c.Id;
-            switch (strCompID) {
+        public void OnDdAction(IRibbonControl c, string selectedId, int selectedIndex) {
+            switch (c.Id) {
                 case "DdMode":
-                    //MessageBox.Show("ID=" + strSelectedID + ", Index=" + nSelectedIndex);
-                    switch (strSelectedID) {
+                    _statusMessage = null;
+                    switch (selectedId) {
                         case "ModeSender":
                             SyncMng.Mode = SyncManager.SyncMode.SENDER;
                             break;
@@ -174,37 +167,52 @@ namespace ZebulonVSTO {
                             SyncMng.Mode = SyncManager.SyncMode.NONE;
                             break;
                     }
-                    updateSyncSettingUI();
+                    UpdateSyncSettingsUI();
                     break;
             }
         }
 
-        private void updateSyncSettingUI() {
-            bool bRunning = SyncMng.IsRunning();
-            bool bSndMode = (SyncMng.Mode == SyncManager.SyncMode.SENDER);
-            bool bRcvMode = (SyncMng.Mode == SyncManager.SyncMode.RECEIVER);
-            updateEnableMap("BtnSync", bSndMode || bRcvMode);
-            updateEnableMap("BtnConsole", bRunning);
-            updateEnableMap("DdMode", !bRunning);
-            updateEnableMap("EbLocalPort", !bRunning);
-            updateEnableMap("EbRemoteIP", !bRunning && bSndMode);
-            updateEnableMap("EbRemotePort", !bRunning && bSndMode);
-            this.ribbon.Invalidate();
+        private void UpdateSyncSettingsUI() {
+            bool isRunning = SyncMng.IsRunning();
+            bool isSenderMode = SyncMng.Mode == SyncManager.SyncMode.SENDER;
+            bool isReceiverMode = SyncMng.Mode == SyncManager.SyncMode.RECEIVER;
+            UpdateEnableMap("BtnSync", isSenderMode || isReceiverMode);
+            UpdateEnableMap("BtnConsole", isRunning);
+            UpdateEnableMap("DdMode", !isRunning);
+            UpdateEnableMap("EbLocalPort", !isRunning);
+            UpdateEnableMap("EbRemoteIP", !isRunning && isSenderMode);
+            UpdateEnableMap("EbRemotePort", !isRunning && isSenderMode);
+            _ribbon.Invalidate();
         }
-        private void updateEnableMap(string strKey, bool bValue) {
-            if (this.pEnableMap.ContainsKey(strKey)) {
-                this.pEnableMap[strKey] = bValue;
+        private void UpdateEnableMap(string key, bool value) {
+            if (_enableMap.ContainsKey(key)) {
+                _enableMap[key] = value;
             } else {
-                this.pEnableMap.Add(strKey, bValue);
+                _enableMap.Add(key, value);
             }
         }
+        private string BuildStatusText() {
+            if (!string.IsNullOrEmpty(_statusMessage)) {
+                return _statusMessage;
+            }
+            if (!SyncMng.IsRunning()) {
+                return "○ 중지됨";
+            }
+            if (SyncMng.Mode == SyncManager.SyncMode.RECEIVER) {
+                return "● 수신 · " + SyncMng.LocalPort;
+            }
+            return "● 송신 · →" + SyncMng.RemoteIP + ":" + SyncMng.RemotePort;
+        }
+        private static bool TryParsePort(string text, out int port) {
+            return int.TryParse(text, out port) && port >= 1 && port <= 65535;
+        }
         public void Ribbon_Load(Office.IRibbonUI ribbonUI) {
-            this.ribbon = ribbonUI;
+            _ribbon = ribbonUI;
         }
 
         #endregion
 
-        #region 도우미
+        #region Helpers
 
         private static string GetResourceText(string resourceName) {
             Assembly asm = Assembly.GetExecutingAssembly();

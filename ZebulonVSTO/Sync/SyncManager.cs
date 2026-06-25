@@ -1,258 +1,262 @@
-﻿using System;
-using System.Net.Sockets;
+using System;
 using System.Net;
-using System.Threading;
-using System.Windows.Forms;
+using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 
 namespace ZebulonVSTO.Sync {
     public class SyncManager {
-        public static string DEFAULT_TARGET = "255.255.255.255";
-        public static string DEFAULT_LOCAL = "127.0.0.1";
-        public static int DEFAULT_PORT = 8291;
-
         public enum SyncMode {
             NONE, SENDER, RECEIVER
         }
 
-        private static SyncManager pInstance = null;
-        private static int NextMessageID = 0;
+        private static SyncManager _instance;
+        private static int _nextMessageId;
 
-        private Thread pThread;
-        private UdpClient pClient;
+        private Thread _receiveThread;
+        private UdpClient _client;
+        private volatile bool _running;
 
-        private string strLocalIP;
-        private string strRemoteIP;
-        private int nLocalPort;
-        private int nRemotePort;
-        private SyncMode nSyncMode; 
-        private bool bRunning;
-        
+        private readonly string _localIP;
+        private string _remoteIP;
+        private int _localPort;
+        private int _remotePort;
+        private SyncMode _mode;
+
+        // Host-provided collaborators, wired via Attach() at add-in startup so
+        // this class carries no compile-time dependency on the VSTO Globals.
+        private ISyncLogger _logger;
+        private ISlideController _controller;
+        private bool _allowCustomCommands;
+
         private SyncManager() {
-            this.pThread = null;
-            this.pClient = null;
+            _receiveThread = null;
+            _client = null;
+            _running = false;
 
-            this.strLocalIP = FindLocalIPAddress();
-            this.nLocalPort = DEFAULT_PORT;
-            this.strRemoteIP = DEFAULT_TARGET;
-            this.nRemotePort = DEFAULT_PORT;
-            this.nSyncMode = SyncMode.NONE;
-            this.bRunning = false;
+            _localIP = FindLocalIPAddress();
+            _localPort = SyncDefaults.Port;
+            _remoteIP = SyncDefaults.Broadcast;
+            _remotePort = SyncDefaults.Port;
+            _mode = SyncMode.NONE;
         }
+
+        /// <summary>
+        /// Connect the add-in host so the manager can log traffic and execute
+        /// received commands. <paramref name="allowCustomCommands"/> mirrors the
+        /// host's debug flag (gates console-issued custom commands).
+        /// </summary>
+        public void Attach(ISyncLogger logger, ISlideController controller, bool allowCustomCommands) {
+            _logger = logger;
+            _controller = controller;
+            _allowCustomCommands = allowCustomCommands;
+        }
+
         public string LocalIP {
-            get { return this.strLocalIP; }
-            set { }
+            get { return _localIP; }
         }
         public int LocalPort {
-            get { return this.nLocalPort; }
-            set {
-                if (!this.bRunning) {
-                    this.nLocalPort = value;
-                }
-            }
+            get { return _localPort; }
+            set { if (!_running) { _localPort = value; } }
         }
         public string RemoteIP {
-            get { return this.strRemoteIP;  }
-            set {
-                if (!this.bRunning) {
-                    this.strRemoteIP = value;
-                }
-            }
+            get { return _remoteIP; }
+            set { if (!_running) { _remoteIP = value; } }
         }
         public int RemotePort {
-            get { return this.nRemotePort; }
-            set {
-                if (!this.bRunning) {
-                    this.nRemotePort = value;
-                }
-            }
+            get { return _remotePort; }
+            set { if (!_running) { _remotePort = value; } }
         }
         public SyncMode Mode {
-            get { return this.nSyncMode; }
-            set {
-                if (!this.bRunning) {
-                    this.nSyncMode = value;
-                }
-            }
+            get { return _mode; }
+            set { if (!_running) { _mode = value; } }
         }
-        public bool IsRunning () {
-            return this.bRunning;
+        public bool IsRunning() {
+            return _running;
         }
 
         public bool StartSync() {
-            if (this.bRunning) {
+            if (_running) {
+                return false;
+            }
+            if (_mode != SyncMode.SENDER && _mode != SyncMode.RECEIVER) {
+                _logger?.LogError("Cannot start sync: invalid mode.", new InvalidOperationException("Mode=" + _mode));
                 return false;
             }
 
-            switch (this.nSyncMode) {
-                case SyncMode.SENDER:
-                case SyncMode.RECEIVER:
-                    this.pClient = new UdpClient(this.nLocalPort);
-                    this.pThread = new Thread(new ThreadStart(ReceiveMessage));
-                    break;
-                default:
-                    MessageBox.Show("Invalid sync mode", "Warning");
-                    return false;
+            try {
+                _client = new UdpClient(_localPort);
+            } catch (Exception e) {
+                _logger?.LogError("Failed to open UDP port " + _localPort + ".", e);
+                _client = null;
+                return false;
             }
-            this.pThread.Start();
-            MessageBox.Show("Start Sync", "ZebulonVSTO");
-            Globals.ThisAddIn.LogDebug("---> Start Sync (Mode: " + this.nSyncMode.ToString() + ")");
-            this.bRunning = true;
+
+            _running = true;
+            _receiveThread = new Thread(ReceiveLoop) { IsBackground = true };
+            _receiveThread.Start();
+            _logger?.Log("---> Start Sync (Mode: " + _mode + ")");
             return true;
         }
 
         public void StopSync() {
-            if (!this.bRunning) {
+            if (!_running) {
                 return;
             }
 
-            if (this.pThread != null) {
-                this.pThread.Abort();
-                this.pThread = null;
-            }
-            if (this.pClient != null) {
-                this.pClient.Close();
-                this.pClient = null;
-            }
+            // Cooperative shutdown. StopSync runs on the UI thread, and the
+            // receive thread marshals commands back to that same thread via
+            // Dispatcher.Invoke — so we must NOT block the UI thread on a Join
+            // here (the two would block each other until the OS timed out).
+            // Instead we flip the flag and close the socket: the blocking
+            // Receive throws ObjectDisposedException and the background
+            // (IsBackground) receive thread unwinds on its own.
+            _running = false;
 
-            MessageBox.Show("Stop Sync", "ZebulonVSTO");
-            Globals.ThisAddIn.LogDebug("<--- Stop Sync");
-            this.bRunning = false;
+            UdpClient client = _client;
+            _client = null;
+            client?.Close();
+            _receiveThread = null;
+            _logger?.Log("<--- Stop Sync");
         }
 
-        private void ReceiveMessage() {
-            IPEndPoint pEndPoint = new IPEndPoint(IPAddress.Parse(this.strLocalIP), this.nLocalPort);
-
+        private void ReceiveLoop() {
+            // Capture the socket once so a concurrent StopSync (_client = null)
+            // can't turn our reads into a NullReferenceException; Close() on the
+            // captured instance still unblocks Receive as ObjectDisposedException.
+            UdpClient client = _client;
+            if (client == null) {
+                return;
+            }
+            IPEndPoint endpoint = new IPEndPoint(IPAddress.Any, _localPort);
             try {
-                while (this.pClient != null) {
-                    byte[] pBytes = this.pClient.Receive(ref pEndPoint);
-                    string strJson = Encoding.UTF8.GetString(pBytes);
-                    SyncMessage pMsg = SyncMessage.Parse(strJson);
-                    if (pMsg != null) {
-                        if (pMsg.IsResonse()) {
-                            LogMessage("▶RES", pMsg);
-                        } else if (this.nSyncMode == SyncMode.RECEIVER) {
-                            LogMessage("▶REQ", pMsg);
-                            bool bRet = ProcessRequest(pMsg);
-                            SendResponse(pMsg, bRet);
+                while (_running) {
+                    byte[] bytes;
+                    try {
+                        bytes = client.Receive(ref endpoint);
+                    } catch (ObjectDisposedException) {
+                        break; // socket closed by StopSync
+                    } catch (SocketException e) {
+                        if (!_running) {
+                            break;
                         }
+                        _logger?.LogError("Socket error while receiving.", e);
+                        continue;
+                    }
+
+                    SyncMessage message = SyncMessage.Parse(Encoding.UTF8.GetString(bytes));
+                    if (message == null) {
+                        continue;
+                    }
+                    if (message.IsResponse()) {
+                        LogMessage("▶RES", message);
+                    } else if (_mode == SyncMode.RECEIVER) {
+                        LogMessage("▶REQ", message);
+                        bool handled = ProcessRequest(message);
+                        SendResponse(message, handled);
                     }
                 }
-            } catch (ThreadAbortException e) {
-                if (this.pClient != null) {
-                    this.pClient.Close();
-                    this.pClient = null;
-                }
-                Console.WriteLine(e.ToString());
             } catch (Exception e) {
-                Globals.ThisAddIn.LogError("Failed to Receive Sync Messages.", e);
+                _logger?.LogError("Failed to receive sync messages.", e);
             }
         }
-        private bool SendMessage(SyncMessage pMsg) {
-            if (this.pClient == null) {
+
+        private bool SendMessage(SyncMessage message) {
+            UdpClient client = _client;
+            if (client == null) {
                 return false;
             }
-
             try {
-                string strJson = pMsg.ToJSONString();
-                byte[] pBytes = Encoding.UTF8.GetBytes(strJson);
-                this.pClient.Send(pBytes, pBytes.Length, this.strRemoteIP, this.nRemotePort);
-                LogMessage("◀REQ", pMsg);
+                byte[] bytes = Encoding.UTF8.GetBytes(message.ToJsonString());
+                client.Send(bytes, bytes.Length, _remoteIP, _remotePort);
+                LogMessage("◀REQ", message);
             } catch (Exception e) {
-                Globals.ThisAddIn.LogError("Failed to Send a Sync Message.", e);
+                _logger?.LogError("Failed to send a sync message.", e);
                 return false;
             }
             return true;
         }
-        private bool SendResponse(SyncMessage pReceived, bool bResult) {
-            if (this.pClient == null) {
+
+        private bool SendResponse(SyncMessage received, bool result) {
+            UdpClient client = _client;
+            if (client == null) {
                 return false;
             }
-
             try {
-                SyncMessage pMsg = new SyncMessage(pReceived.ID, this.strLocalIP, this.nLocalPort, MessageType.RESPONSE, bResult ? "Success" : "Failed");
-                string strJson = pMsg.ToJSONString();
-                byte[] pBytes = Encoding.UTF8.GetBytes(strJson);
-                this.pClient.Send(pBytes, pBytes.Length, pReceived.SenderIP, pReceived.SenderPort);
-                LogMessage("◀RES", pMsg);
+                SyncMessage message = new SyncMessage(received.ID, _localIP, _localPort,
+                    MessageType.RESPONSE, result ? "Success" : "Failed");
+                byte[] bytes = Encoding.UTF8.GetBytes(message.ToJsonString());
+                client.Send(bytes, bytes.Length, received.SenderIP, received.SenderPort);
+                LogMessage("◀RES", message);
             } catch (Exception e) {
-                Globals.ThisAddIn.LogError("Failed to Send a Sync Response Message.", e);
+                _logger?.LogError("Failed to send a sync response message.", e);
                 return false;
             }
-
             return true;
         }
-        private SyncMessage CreateSenderMessage(MessageType nType, string strData) {
-            return new SyncMessage(NextMessageID++, this.strLocalIP, this.nLocalPort, nType, strData);
+
+        private SyncMessage CreateSenderMessage(MessageType type, string data) {
+            int id = Interlocked.Increment(ref _nextMessageId);
+            return new SyncMessage(id, _localIP, _localPort, type, data);
         }
-        public bool SendRequestMessage(string strData, bool bIsCustom=false) {
-            if (this.nSyncMode != SyncMode.SENDER && (!Globals.ThisAddIn.DEBUG_MODE || !bIsCustom)) {
+
+        public bool SendRequestMessage(string data, bool isCustom = false) {
+            if (_mode != SyncMode.SENDER && (!_allowCustomCommands || !isCustom)) {
                 return false;
             }
-            SyncMessage pMsg = CreateSenderMessage(bIsCustom ? MessageType.CUSTOM : MessageType.REQUEST, strData);
-            return SendMessage(pMsg);
+            SyncMessage message = CreateSenderMessage(isCustom ? MessageType.CUSTOM : MessageType.REQUEST, data);
+            return SendMessage(message);
         }
 
-        private bool ProcessRequest(SyncMessage pReceived) {
-            string strData = pReceived.Data;
-            if (strData != null && strData.Length > 0) {
-                string strCommand = "";
-                string strDetail = "";
-                int nSep = strData.IndexOf(" ");
-                if (nSep > 0) {
-                    strCommand = strData.Substring(0, nSep).ToLower();
-                    if (strData.Length > nSep + 1) {
-                        strDetail = strData.Substring(nSep + 1);
-                    }
-                } else {
-                    strCommand = strData.ToLower();
-                }
-
-                int nSlideIndex;
-                switch (strCommand) {
-                    case "alert":
-                        string strSender = pReceived.SenderIP + ":" + pReceived.SenderPort.ToString();
-                        DialogResult pRet = MessageBox.Show(strDetail, strSender);
-                        return pRet == DialogResult.OK;
-                    case "select":
-                        if (int.TryParse(strDetail, out nSlideIndex)) {
-                            return Globals.ThisAddIn.DoSelectSlide(nSlideIndex);
-                        }
-                        break;
-                    case "showslide":
-                        if (int.TryParse(strDetail, out nSlideIndex)) {
-                            return Globals.ThisAddIn.DoSlideShow(nSlideIndex);
-                        }
-                        break;
-                    case "hideslide":
-                        return Globals.ThisAddIn.DoSlideShowEnd();
-                }
+        private bool ProcessRequest(SyncMessage received) {
+            ParsedCommand command = CommandParser.Parse(received.Data);
+            switch (command.Kind) {
+                case CommandKind.Alert:
+                    string sender = received.SenderIP + ":" + received.SenderPort;
+                    return _controller != null && _controller.Alert(sender, command.Text);
+                case CommandKind.Select:
+                    return _controller != null && _controller.SelectSlide(command.SlideIndex);
+                case CommandKind.ShowSlide:
+                    return _controller != null && _controller.ShowSlide(command.SlideIndex);
+                case CommandKind.HideSlide:
+                    return _controller != null && _controller.HideSlide();
+                default:
+                    return false;
             }
-            return false;
         }
 
         public static SyncManager GetInstance() {
-            if (pInstance == null) {
-                pInstance = new SyncManager();
+            if (_instance == null) {
+                _instance = new SyncManager();
             }
-            return pInstance;
+            return _instance;
         }
+
         public static string FindLocalIPAddress() {
-            IPHostEntry host = Dns.GetHostEntry(Dns.GetHostName());
-            foreach (IPAddress ip in host.AddressList) {
-                if (ip.AddressFamily == AddressFamily.InterNetwork) {
-                    return ip.ToString();
+            try {
+                IPHostEntry host = Dns.GetHostEntry(Dns.GetHostName());
+                foreach (IPAddress ip in host.AddressList) {
+                    if (ip.AddressFamily == AddressFamily.InterNetwork) {
+                        return ip.ToString();
+                    }
                 }
+            } catch (Exception) {
+                // fall through to the loopback default
             }
-            return DEFAULT_LOCAL;
+            return SyncDefaults.Localhost;
         }
-        private static void LogMessage(string strPrefix, SyncMessage pMsg) {
-            string strText = strPrefix + " ";
-            if (pMsg != null) {
-                strText += String.Format("[{0}:{1}][{2}][{3}] ", pMsg.SenderIP, pMsg.SenderPort, pMsg.ID, ((MessageType)pMsg.Type).ToString());
-                strText += pMsg.Data;
+
+        private void LogMessage(string prefix, SyncMessage message) {
+            if (_logger == null) {
+                return;
             }
-            Globals.ThisAddIn.LogDebug(strText);
+            string text = prefix + " ";
+            if (message != null) {
+                text += string.Format("[{0}:{1}][{2}][{3}] ", message.SenderIP, message.SenderPort,
+                    message.ID, ((MessageType)message.Type).ToString());
+                text += message.Data;
+            }
+            _logger.Log(text);
         }
     }
 }

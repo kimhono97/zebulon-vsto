@@ -1,0 +1,36 @@
+name: CI
+
+# The VSTO add-in itself can only be built with MSBuild + the VSTO/Office build
+# targets, which GitHub's hosted runners do not provide — so CI verifies the
+# pure, COM-free logic via the SDK-style xUnit project. The full add-in
+# Release build + packaging is done locally (see Build-Release.ps1).
+
+on:
+  push:
+    branches: [ main, update ]
+  pull_request:
+    branches: [ main, update ]
+
+jobs:
+  test:
+    name: Unit tests (pure logic)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Test
+        run: dotnet test tests/ZebulonVSTO.Tests/ZebulonVSTO.Tests.csproj -c Debug --logger "trx;LogFileName=test-results.trx" --results-directory artifacts/test-results
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: artifacts/test-results/*.trx
+          if-no-files-found: ignore
