@@ -221,7 +221,7 @@
     <ManifestKeyFile>ZebulonVSTO_TemporaryKey.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>290E123AB16DDD9CF1C892FD8390BD530B40328E</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>BDEB7C77F1C2347FF7B935F540D8BF513648F3DC</ManifestCertificateThumbprint>
   </PropertyGroup>
   <!-- Include the build rules for a C# project. -->
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

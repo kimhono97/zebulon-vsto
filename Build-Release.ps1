@@ -51,7 +51,12 @@ $version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $bin 
 Write-Host "  built version $version"
 
 # --- export the signing certificate's PUBLIC .cer (for trust on target machines) ---
-$thumb = '290E123AB16DDD9CF1C892FD8390BD530B40328E'
+# Read the thumbprint from the csproj so this never drifts from what actually signs.
+$csprojText = Get-Content (Join-Path $repo 'ZebulonVSTO\ZebulonVSTO.csproj') -Raw
+if ($csprojText -notmatch '<ManifestCertificateThumbprint>([0-9A-Fa-f]+)</ManifestCertificateThumbprint>') {
+    throw 'Could not read ManifestCertificateThumbprint from the csproj.'
+}
+$thumb = $matches[1]
 $cert = Get-Item "Cert:\CurrentUser\My\$thumb" -ErrorAction SilentlyContinue
 if (-not $cert) {
     $pfx = Join-Path $repo 'ZebulonVSTO\ZebulonVSTO_TemporaryKey.pfx'
