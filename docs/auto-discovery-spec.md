@@ -55,10 +55,10 @@ Identity travels in the message body, not the transport, so it survives ephemera
 | Field | Value | Note |
 |---|---|---|
 | `Type` | 3 | |
-| `SenderIP` | scanner's `LocalIP` | used for self-filtering (§2.8) |
+| `SenderIP` | scanner's `LocalIP` | informational (responder replies to the UDP source) |
 | `SenderPort` | scanner's discovery source port | informational |
 | `ID` | new scan session id (`Interlocked.Increment`) | echoed back for correlation |
-| `Data` | `ZSYNC1;q=1;want=RECEIVER` | `want` optional filter |
+| `Data` | `ZSYNC1;q=1;want=RECEIVER;id=<InstanceId>` | `want` optional; `id` = sender's per-process id for self-skip (§2.8) |
 
 **ANNOUNCE** (responder → unicast back to the DISCOVER datagram's **actual UDP source endpoint**)
 | Field | Value | Note |
@@ -67,7 +67,7 @@ Identity travels in the message body, not the transport, so it survives ephemera
 | `SenderIP` | responder's **sync** `LocalIP` | scanner copies → `RemoteIP` |
 | `SenderPort` | responder's **sync** `LocalPort` | scanner copies → `RemotePort` |
 | `ID` | echoed scan session id | scanner drops non-matching (stale) replies |
-| `Data` | `ZSYNC1;role=RECEIVER;host=PC-A;ver=1.2.0` | role/host/version |
+| `Data` | `ZSYNC1;role=RECEIVER;host=PC-A;ver=1.2.0;id=<InstanceId>` | role/host/version + responder's per-process id |
 
 `SenderIP:SenderPort` is the single source of truth for "where to reach me for sync"; `Data` carries only non-address metadata (no duplicate port).
 
@@ -89,12 +89,15 @@ DiscoveryPayload {
   string Version     // assembly ProductVersion           (ANNOUNCE)
   string Want        // optional role filter              (DISCOVER)
   bool   IsQuery     // q=1                                (DISCOVER)
+  string InstanceId  // sender's per-process id           (both)
 }
 static DiscoveryPayload Parse(string data)
-static string BuildDiscover(string want)
-static string BuildAnnounce(string role, string host, string version)
+static string BuildDiscover(string want, string instanceId)
+static string BuildAnnounce(string role, string host, string version, string instanceId)
 ```
 Place in `Sync/DiscoveryProtocol.cs` (alongside `SyncDefaults`). Add `DiscoveryPort = 8290` to `SyncDefaults`.
+
+**Self-recognition uses `InstanceId`, not `LocalIP`.** `SyncManager` holds a per-process `InstanceId` (`Guid.NewGuid().ToString("N")`, stable for the session); the scanner stamps it on every `DISCOVER` and the responder on every `ANNOUNCE`. Recognizing "my own datagram" by `LocalIP` is wrong — every process on a host shares the same IP, so a same-host peer/stand-in would be wrongly filtered. Matching by `InstanceId` lets same-machine testing work while still preventing an instance from listing itself.
 
 ### 2.5 Always-on responder (`Sync/DiscoveryResponder.cs`)
 - Owns a `UdpClient` bound to `8290` with `ExclusiveAddressUse = false` + `ReuseAddress` (multi-instance per host for testing).
@@ -110,13 +113,13 @@ Place in `Sync/DiscoveryProtocol.cs` (alongside `SyncDefaults`). Add `DiscoveryP
 | stopped (NONE) | `IDLE` | sync `LocalPort` (default 8291) |
 
 - Lifecycle: started in `ThisAddIn_Startup`, stopped in `ThisAddIn_Shutdown`.
-- **Self-skip:** if `DISCOVER.SenderIP == own LocalIP`, do not reply (avoids the scanner listing itself; see §2.8 caveat).
+- **Self-skip:** if `DISCOVER.id == own InstanceId`, do not reply (avoids the scanner listing itself — by per-process id, so same-host peers/stand-ins still get answered).
 
 ### 2.6 Scanner (`Sync/DiscoveryScanner.cs`, used by the wizard)
 - Opens a temporary `UdpClient` on an ephemeral port with `EnableBroadcast = true`.
 - Sends `DISCOVER` **3×, 300 ms apart** (UDP is lossy); collection window ≈ **1.8 s**.
 - Collects `ANNOUNCE` whose `ID` matches the current scan session; **dedupes by `SenderIP:SenderPort`**.
-- Client-side **self-filter**: drop announces where `SenderIP == own LocalIP`.
+- Client-side **self-filter**: drop announces where `id == own InstanceId` (per-process, not `LocalIP`).
 - Exposes results as they arrive via a callback/event; the wizard marshals UI updates with `Dispatcher.Invoke` (pattern from `SyncConsole.AppendLogLine`).
 - Scan is cancelable (cooperative stop) when the wizard closes or re-scans.
 
@@ -145,7 +148,7 @@ DiscoveredPeer { string Host; string IP; int SyncPort; string Role; string Versi
 ### 2.8 Edge cases & known limits
 - **Multi-NIC:** `FindLocalIPAddress` picks the first IPv4 only; v1 broadcasts to `255.255.255.255`. Multi-NIC directed broadcast via `NetworkInterface.GetAllNetworkInterfaces()` is v2.
 - **Broadcast blocked** (AP client isolation / firewalls): scan returns 0 → wizard offers re-scan and "switch to manual" (manual always works).
-- **Same-host multi-instance:** requires `ReuseAddress`; unicast `ANNOUNCE` may reach only one socket, and self-filter by `LocalIP` hides same-host peers. This is a **test-only caveat**; real multi-machine use (distinct IPs) is unaffected. The PowerShell stand-in (§9) covers same-host testing.
+- **Same-host multi-instance:** requires `ReuseAddress` (set on both the responder and the PS stand-in). Self-recognition is by `InstanceId` (§2.4), so a same-host peer/stand-in is **not** wrongly filtered — single-machine testing with the PowerShell stand-in (§9) works. (One residual quirk: a *unicast* ANNOUNCE could be delivered to only one socket when several share the port, but ANNOUNCEs target the scanner's unique ephemeral port, so this does not bite in practice.)
 - **Security/disclosure:** the always-on responder discloses host/role/version on the LAN. The `ZSYNC1` magic limits responses to our protocol. Acceptable for internal LAN use; documented.
 
 ---

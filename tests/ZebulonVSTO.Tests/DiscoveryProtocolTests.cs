@@ -4,8 +4,8 @@ using ZebulonVSTO.Sync;
 namespace ZebulonVSTO.Tests {
     public class DiscoveryProtocolTests {
         [Fact]
-        public void Announce_RoundTrips_RoleHostVersion() {
-            string wire = DiscoveryPayload.BuildAnnounce(DiscoveryRole.Receiver, "PC-A", "1.2.0");
+        public void Announce_RoundTrips_RoleHostVersionId() {
+            string wire = DiscoveryPayload.BuildAnnounce(DiscoveryRole.Receiver, "PC-A", "1.2.0", "abc123");
 
             DiscoveryPayload parsed = DiscoveryPayload.Parse(wire);
 
@@ -13,27 +13,30 @@ namespace ZebulonVSTO.Tests {
             Assert.Equal(DiscoveryRole.Receiver, parsed.Role);
             Assert.Equal("PC-A", parsed.Host);
             Assert.Equal("1.2.0", parsed.Version);
+            Assert.Equal("abc123", parsed.InstanceId);
         }
 
         [Fact]
         public void Discover_WithWant_RoundTrips() {
-            string wire = DiscoveryPayload.BuildDiscover(DiscoveryRole.Receiver);
+            string wire = DiscoveryPayload.BuildDiscover(DiscoveryRole.Receiver, "abc123");
 
             DiscoveryPayload parsed = DiscoveryPayload.Parse(wire);
 
             Assert.True(parsed.Valid);
             Assert.True(parsed.IsQuery);
             Assert.Equal(DiscoveryRole.Receiver, parsed.Want);
+            Assert.Equal("abc123", parsed.InstanceId);
         }
 
         [Fact]
         public void Discover_WithoutWant_OmitsFilter() {
-            string wire = DiscoveryPayload.BuildDiscover(DiscoveryRole.Unknown);
+            string wire = DiscoveryPayload.BuildDiscover(DiscoveryRole.Unknown, "abc123");
 
             DiscoveryPayload parsed = DiscoveryPayload.Parse(wire);
 
             Assert.True(parsed.IsQuery);
             Assert.Equal(DiscoveryRole.Unknown, parsed.Want); // "any role may answer"
+            Assert.Equal("abc123", parsed.InstanceId);
         }
 
         /// <summary>
@@ -45,10 +48,10 @@ namespace ZebulonVSTO.Tests {
         [Fact]
         public void WireFormat_IsFrozen() {
             Assert.Equal("ZSYNC1", DiscoveryPayload.Magic);
-            Assert.Equal("ZSYNC1;q=1", DiscoveryPayload.BuildDiscover(DiscoveryRole.Unknown));
-            Assert.Equal("ZSYNC1;q=1;want=RECEIVER", DiscoveryPayload.BuildDiscover(DiscoveryRole.Receiver));
-            Assert.Equal("ZSYNC1;role=RECEIVER;host=PC-A;ver=1.2.0",
-                DiscoveryPayload.BuildAnnounce(DiscoveryRole.Receiver, "PC-A", "1.2.0"));
+            Assert.Equal("ZSYNC1;q=1;id=abc", DiscoveryPayload.BuildDiscover(DiscoveryRole.Unknown, "abc"));
+            Assert.Equal("ZSYNC1;q=1;want=RECEIVER;id=abc", DiscoveryPayload.BuildDiscover(DiscoveryRole.Receiver, "abc"));
+            Assert.Equal("ZSYNC1;role=RECEIVER;host=PC-A;ver=1.2.0;id=abc",
+                DiscoveryPayload.BuildAnnounce(DiscoveryRole.Receiver, "PC-A", "1.2.0", "abc"));
         }
 
         [Theory]
@@ -118,7 +121,7 @@ namespace ZebulonVSTO.Tests {
         [InlineData("PC;A")] // delimiter in host must not corrupt the grammar
         [InlineData("PC=A")]
         public void Announce_SanitizesDelimitersInHost(string rawHost) {
-            string wire = DiscoveryPayload.BuildAnnounce(DiscoveryRole.Receiver, rawHost, "1.0");
+            string wire = DiscoveryPayload.BuildAnnounce(DiscoveryRole.Receiver, rawHost, "1.0", "n1");
 
             DiscoveryPayload parsed = DiscoveryPayload.Parse(wire);
 

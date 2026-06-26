@@ -49,19 +49,25 @@ namespace ZebulonVSTO.Sync {
         /// <summary>Requested role filter; <see cref="DiscoveryRole.Unknown"/> = any.</summary>
         public DiscoveryRole Want { get; }
 
+        /// <summary>Sender's per-process id (both directions). Used to recognize
+        /// one's own datagrams without relying on LocalIP (which is identical for
+        /// every process on a host). Empty when absent.</summary>
+        public string InstanceId { get; }
+
         private DiscoveryPayload(bool valid, DiscoveryRole role, string host, string version,
-                                 bool isQuery, DiscoveryRole want) {
+                                 bool isQuery, DiscoveryRole want, string instanceId) {
             Valid = valid;
             Role = role;
             Host = host ?? string.Empty;
             Version = version ?? string.Empty;
             IsQuery = isQuery;
             Want = want;
+            InstanceId = instanceId ?? string.Empty;
         }
 
         public static readonly DiscoveryPayload Invalid =
             new DiscoveryPayload(false, DiscoveryRole.Unknown, string.Empty, string.Empty,
-                                 false, DiscoveryRole.Unknown);
+                                 false, DiscoveryRole.Unknown, string.Empty);
 
         public static DiscoveryPayload Parse(string data) {
             if (string.IsNullOrEmpty(data)) {
@@ -77,6 +83,7 @@ namespace ZebulonVSTO.Sync {
             string version = string.Empty;
             bool isQuery = false;
             DiscoveryRole want = DiscoveryRole.Unknown;
+            string instanceId = string.Empty;
 
             for (int i = 1; i < tokens.Length; i++) {
                 string token = tokens[i];
@@ -92,29 +99,34 @@ namespace ZebulonVSTO.Sync {
                     case "ver": version = value; break;
                     case "want": want = RoleFromWire(value); break;
                     case "q": isQuery = value == "1"; break;
+                    case "id": instanceId = value; break;
                     // unknown keys ignored (forward-compatible)
                 }
             }
-            return new DiscoveryPayload(true, role, host, version, isQuery, want);
+            return new DiscoveryPayload(true, role, host, version, isQuery, want, instanceId);
         }
 
         /// <summary>Build a DISCOVER ping payload. <paramref name="want"/> =
-        /// <see cref="DiscoveryRole.Unknown"/> omits the filter (any role answers).</summary>
-        public static string BuildDiscover(DiscoveryRole want) {
+        /// <see cref="DiscoveryRole.Unknown"/> omits the filter (any role answers).
+        /// <paramref name="instanceId"/> lets responders skip the sender's own broadcast.</summary>
+        public static string BuildDiscover(DiscoveryRole want, string instanceId) {
             StringBuilder sb = new StringBuilder(Magic);
             sb.Append(";q=1");
             if (want != DiscoveryRole.Unknown) {
                 sb.Append(";want=").Append(RoleToWire(want));
             }
+            sb.Append(";id=").Append(Sanitize(instanceId));
             return sb.ToString();
         }
 
-        /// <summary>Build an ANNOUNCE reply payload.</summary>
-        public static string BuildAnnounce(DiscoveryRole role, string host, string version) {
+        /// <summary>Build an ANNOUNCE reply payload. <paramref name="instanceId"/>
+        /// lets the scanner skip its own responder's reply.</summary>
+        public static string BuildAnnounce(DiscoveryRole role, string host, string version, string instanceId) {
             StringBuilder sb = new StringBuilder(Magic);
             sb.Append(";role=").Append(RoleToWire(role));
             sb.Append(";host=").Append(Sanitize(host));
             sb.Append(";ver=").Append(Sanitize(version));
+            sb.Append(";id=").Append(Sanitize(instanceId));
             return sb.ToString();
         }
 

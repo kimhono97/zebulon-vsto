@@ -162,11 +162,13 @@ namespace ZebulonVSTO.Sync {
             if (message.ID != scanId) {
                 return; // stale reply from a previous scan
             }
-            if (message.SenderIP == _sync.LocalIP) {
-                return; // don't list ourselves
-            }
             DiscoveryPayload payload = DiscoveryPayload.Parse(message.Data);
             if (!payload.Valid) {
+                return;
+            }
+            // Don't list ourselves — match by per-process InstanceId, not LocalIP
+            // (every process on this host shares our IP; only the id is unique).
+            if (payload.InstanceId == _sync.InstanceId) {
                 return;
             }
             string key = message.SenderIP + ":" + message.SenderPort;
@@ -181,7 +183,7 @@ namespace ZebulonVSTO.Sync {
             // SenderIP lets responders self-skip our own broadcast; SenderPort is
             // informational only (responders reply to the actual UDP source).
             SyncMessage message = new SyncMessage(scanId, _sync.LocalIP, SyncDefaults.DiscoveryPort,
-                MessageType.DISCOVER, DiscoveryPayload.BuildDiscover(want));
+                MessageType.DISCOVER, DiscoveryPayload.BuildDiscover(want, _sync.InstanceId));
             return Encoding.UTF8.GetBytes(message.ToJsonString());
         }
     }

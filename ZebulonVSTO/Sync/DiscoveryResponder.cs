@@ -113,8 +113,10 @@ namespace ZebulonVSTO.Sync {
             if (!payload.Valid || !payload.IsQuery) {
                 return;
             }
-            // Don't answer our own broadcast (the scanner stamps its LocalIP).
-            if (message.SenderIP == _sync.LocalIP) {
+            // Don't answer our own broadcast. Compare the per-process InstanceId,
+            // NOT LocalIP — another process on the same host shares our IP but has
+            // a different InstanceId (so same-machine peers/stand-ins still match).
+            if (payload.InstanceId == _sync.InstanceId) {
                 return;
             }
             DiscoveryRole role = CurrentRole();
@@ -128,7 +130,7 @@ namespace ZebulonVSTO.Sync {
 
         private void SendAnnounce(UdpClient client, IPEndPoint target, int echoId, DiscoveryRole role) {
             try {
-                string data = DiscoveryPayload.BuildAnnounce(role, Environment.MachineName, _version);
+                string data = DiscoveryPayload.BuildAnnounce(role, Environment.MachineName, _version, _sync.InstanceId);
                 // SenderIP/SenderPort carry the SYNC coordinates (where to reach
                 // me for sync), not the discovery port. ID echoes the DISCOVER's
                 // id so the scanner can drop stale replies from a prior scan.

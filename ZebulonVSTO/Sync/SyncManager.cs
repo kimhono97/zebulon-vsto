@@ -13,6 +13,11 @@ namespace ZebulonVSTO.Sync {
         private static SyncManager _instance;
         private static int _nextMessageId;
 
+        // Per-process identity for discovery self-recognition. Distinguishes "my
+        // own broadcast" from another process on the SAME host (LocalIP can't —
+        // it's identical for every process on a machine). Stable for the session.
+        private readonly string _instanceId = Guid.NewGuid().ToString("N");
+
         private Thread _receiveThread;
         private UdpClient _client;
         private volatile bool _running;
@@ -68,6 +73,9 @@ namespace ZebulonVSTO.Sync {
 
         public string LocalIP {
             get { return _localIP; }
+        }
+        public string InstanceId {
+            get { return _instanceId; }
         }
         public int LocalPort {
             get { return _localPort; }
