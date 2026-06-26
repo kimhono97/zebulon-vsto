@@ -7,22 +7,18 @@
 			  <button id="BtnAbout" label="Zebulon 정보" size="large" imageMso="Info" onAction="OnBtnAction"/>
 		  </group>
 		  <group id="GroupSync" label="동기화">
-			  <button id="BtnSync" size="large" getEnabled="GetEnabled" getImage="GetImage" getLabel="GetLabel" onAction="OnBtnAction"/>
-			  <box id="BoxLocalSettings" boxStyle="vertical">
-				  <dropDown id="DdMode" label="모드" getEnabled="GetEnabled" onAction="OnDdAction" getSelectedItemIndex="GetSelectedItemIndex">
-					  <item id="ModeSender" label="송신"/>
-					  <item id="ModeReceiver" label="수신"/>
-				  </dropDown>
-				  <editBox id="EbLocalIP" label="로컬 IP" enabled="false" getText="GetText" onChange="OnTextChange"/>
-				  <editBox id="EbLocalPort" label="로컬 포트" getEnabled="GetEnabled" getText="GetText" onChange="OnTextChange"/>
-			  </box >
-			  <box id="BoxRemoteSettings" boxStyle="vertical">
+			  <!-- Col 1: start/stop (large = 3 normal rows tall). Stopped → opens the
+			       setup wizard; running → stops sync. -->
+			  <button id="BtnSync" size="large" getImage="GetImage" getLabel="GetLabel" onAction="OnBtnAction"/>
+			  <!-- Col 2: tools. Lower two rows intentionally empty (reserved for future counters). -->
+			  <box id="BoxTools" boxStyle="vertical">
 				  <button id="BtnConsole" size="normal" label="콘솔" imageMso="ActiveXTextBox" getEnabled="GetEnabled" onAction="OnBtnAction"/>
-				  <editBox id="EbRemoteIP" label="원격 IP" getEnabled="GetEnabled" getText="GetText" onChange="OnTextChange"/>
-				  <editBox id="EbRemotePort" label="원격 포트" getEnabled="GetEnabled" getText="GetText" onChange="OnTextChange"/>
 			  </box>
+			  <!-- Col 3: status strip (3 rows). Minimal when stopped; self/peer info while running. -->
 			  <box id="BoxStatus" boxStyle="vertical">
-				  <labelControl id="LblStatus" getLabel="GetLabel"/>
+				  <labelControl id="LblState" getLabel="GetLabel"/>
+				  <labelControl id="LblLocal" getLabel="GetLabel" getVisible="GetVisible"/>
+				  <labelControl id="LblRemote" getLabel="GetLabel" getVisible="GetVisible"/>
 			  </box>
 		  </group>
       </tab>

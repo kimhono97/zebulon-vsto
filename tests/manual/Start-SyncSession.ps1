@@ -5,10 +5,11 @@
     without needing a second PowerPoint. Pure PowerShell — no add-in DLL.
 
 .DESCRIPTION
-    Mirrors the add-in's two roles, parameterized by a single -Port:
+    Mirrors the add-in's roles, parameterized by a single -Port:
 
-      -Mode Sender   -Port N   ->  emit commands to <Ip>:N  (REPL prompt)
-      -Mode Receiver -Port N   ->  listen on <Ip>:N, log datagrams, reply
+      -Mode Sender    -Port N   ->  emit commands to <Ip>:N  (REPL prompt)
+      -Mode Receiver  -Port N   ->  listen on <Ip>:N, log datagrams, reply
+      -Mode Responder           ->  answer peer-discovery pings (auto-detect)
 
     SENDER binds an ephemeral local port automatically (so it never collides with
     a receiver) and reads RESPONSEs there. Session commands: help, info, verbose,
@@ -17,25 +18,37 @@
     RECEIVER binds <Ip>:<Port> and (unless -Reply None) answers each REQUEST.
     Stop with q/Esc, Ctrl+C, or -RunSeconds.
 
+    RESPONDER stands in for the add-in's always-on discovery responder: it listens
+    on -DiscoveryPort (8290) and answers each DISCOVER with an ANNOUNCE advertising
+    -Role (default Receiver) at sync port -Port. This lets a single F5 add-in
+    instance populate the setup wizard's auto-discovery list. It sets SO_REUSEADDR,
+    so it can share 8290 with a running add-in on the same host.
+
 .PARAMETER Mode
-    Sender (default) or Receiver.
+    Sender (default), Receiver, or Responder.
 
 .PARAMETER Port
-    The port. SENDER: the destination it emits to. RECEIVER: the port it listens
-    on. Default 8291.
+    SENDER: the destination it emits to. RECEIVER: the port it listens on.
+    RESPONDER: the sync port it advertises in its ANNOUNCE. Default 8291.
 
 .PARAMETER Ip
     SENDER: destination IP (default 127.0.0.1; use 255.255.255.255 to broadcast).
-    RECEIVER: local interface to bind (default 0.0.0.0 = all interfaces).
+    RECEIVER/RESPONDER: local interface to bind (default 0.0.0.0 = all interfaces).
 
 .PARAMETER Reply
     RECEIVER only: answer REQUESTs with Success (default), Failed, or None.
 
 .PARAMETER RunSeconds
-    RECEIVER only: auto-stop after N seconds (0 = run until q/Esc/Ctrl+C).
+    RECEIVER/RESPONDER: auto-stop after N seconds (0 = run until q/Esc/Ctrl+C).
 
 .PARAMETER TimeoutMs
     SENDER only: how long to wait for each RESPONSE. Default 1000.
+
+.PARAMETER Role
+    RESPONDER only: the role to advertise — Receiver (default), Sender, or Idle.
+
+.PARAMETER DiscoveryPort
+    RESPONDER only: the discovery port to listen on. Default 8290.
 
 .EXAMPLE
     .\Start-SyncSession.ps1 -Mode Sender -Port 8291
@@ -43,15 +56,21 @@
 
 .EXAMPLE
     .\Start-SyncSession.ps1 -Mode Receiver -Port 8291
+
+.EXAMPLE
+    # Appear as a discoverable RECEIVER (sync port 8291) for the wizard's auto list
+    .\Start-SyncSession.ps1 -Mode Responder -Port 8291
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Sender', 'Receiver')] [string] $Mode = 'Sender',
-    [int]    $Port       = 8291,
-    [string] $Ip         = '',
+    [ValidateSet('Sender', 'Receiver', 'Responder')] [string] $Mode = 'Sender',
+    [int]    $Port          = 8291,
+    [string] $Ip            = '',
     [ValidateSet('Success', 'Failed', 'None')] [string] $Reply = 'Success',
-    [int]    $RunSeconds  = 0,
-    [int]    $TimeoutMs   = 1000
+    [int]    $RunSeconds    = 0,
+    [int]    $TimeoutMs     = 1000,
+    [ValidateSet('Receiver', 'Sender', 'Idle')] [string] $Role = 'Receiver',
+    [int]    $DiscoveryPort = 8290
 )
 
 $ErrorActionPreference = 'Stop'
@@ -260,4 +279,103 @@ function Invoke-ReceiverMode {
     }
 }
 
-if ($Mode -eq 'Receiver') { Invoke-ReceiverMode } else { Invoke-SenderMode }
+function ConvertFrom-DiscoveryPayload([string] $data) {
+    # Parse "ZSYNC1;key=value;..." — mirror of DiscoveryPayload.Parse.
+    $result = @{ Valid = $false; Role = ''; Host = ''; Ver = ''; Want = ''; IsQuery = $false }
+    if ([string]::IsNullOrEmpty($data)) { return $result }
+    $tokens = $data -split ';'
+    if ($tokens[0] -cne 'ZSYNC1') { return $result }   # magic is case-sensitive
+    $result.Valid = $true
+    for ($i = 1; $i -lt $tokens.Length; $i++) {
+        $t = $tokens[$i]
+        $eq = $t.IndexOf('=')
+        if ($eq -le 0) { continue }
+        $k = $t.Substring(0, $eq)
+        $v = $t.Substring($eq + 1)
+        switch ($k) {
+            'role' { $result.Role = $v }
+            'host' { $result.Host = $v }
+            'ver'  { $result.Ver = $v }
+            'want' { $result.Want = $v }
+            'q'    { $result.IsQuery = ($v -eq '1') }
+        }
+    }
+    return $result
+}
+
+function Invoke-ResponderMode {
+    $bindIp = if ([string]::IsNullOrEmpty($Ip)) { '0.0.0.0' } else { $Ip }
+    try {
+        $udp = New-Object System.Net.Sockets.UdpClient
+        $udp.ExclusiveAddressUse = $false
+        $udp.Client.SetSocketOption(
+            [System.Net.Sockets.SocketOptionLevel]::Socket,
+            [System.Net.Sockets.SocketOptionName]::ReuseAddress, $true)
+        $bindAddr = if ($bindIp -eq '0.0.0.0') { [System.Net.IPAddress]::Any } else { [System.Net.IPAddress]::Parse($bindIp) }
+        $udp.Client.Bind((New-Object System.Net.IPEndPoint($bindAddr, $DiscoveryPort)))
+    } catch {
+        Write-Host ("ERROR: cannot bind discovery UDP {0}:{1} - {2}" -f $bindIp, $DiscoveryPort, $_.Exception.GetBaseException().Message) -ForegroundColor Red
+        return
+    }
+    $udp.Client.ReceiveTimeout = 400
+    $remote = New-Object System.Net.IPEndPoint([System.Net.IPAddress]::Any, 0)
+    $myIp = if ($bindIp -and $bindIp -ne '0.0.0.0') { $bindIp } else { Get-LocalIPv4 }
+    $roleWire = $Role.ToUpperInvariant()
+
+    $canPollKeys = $false
+    try { $canPollKeys = -not [Console]::IsInputRedirected } catch { $canPollKeys = $false }
+    $stopHint = if ($canPollKeys) { "Press 'q' or Esc to stop." } else { 'Press Ctrl+C to stop.' }
+    if ($RunSeconds -gt 0) { $stopHint = "Auto-stops in $RunSeconds s. $stopHint" }
+    Write-Host ("ZebulonVSTO discovery mirror [RESPONDER] -> listening on {0}:{1}, announcing role={2} at sync :{3}" -f $bindIp, $DiscoveryPort, $roleWire, $Port) -ForegroundColor Green
+    Write-Host $stopHint
+
+    $count = 0
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    try {
+        while ($true) {
+            if ($canPollKeys) {
+                try {
+                    if ([Console]::KeyAvailable) {
+                        $k = [Console]::ReadKey($true)
+                        if ($k.Key -eq 'Q' -or $k.Key -eq 'Escape') { break }
+                    }
+                } catch { $canPollKeys = $false }
+            }
+            if ($RunSeconds -gt 0 -and $sw.Elapsed.TotalSeconds -ge $RunSeconds) { break }
+
+            try {
+                $bytes = $udp.Receive([ref] $remote)
+            } catch [System.Net.Sockets.SocketException] {
+                continue   # ReceiveTimeout elapsed; loop to poll keys / clock
+            }
+
+            $raw = [System.Text.Encoding]::UTF8.GetString($bytes)
+            $msg = $null
+            try { $msg = $raw | ConvertFrom-Json } catch { }
+            if ($null -eq $msg -or [int]$msg.Type -ne 3) { continue }   # only DISCOVER (Type 3)
+
+            $payload = ConvertFrom-DiscoveryPayload ([string]$msg.Data)
+            if (-not $payload.Valid -or -not $payload.IsQuery) { continue }
+            # Don't answer our own broadcast, and honor an optional role filter.
+            if ([string]$msg.SenderIP -eq $myIp) { continue }
+            if ($payload.Want -and $payload.Want.ToUpperInvariant() -ne $roleWire) { continue }
+
+            $annData = "ZSYNC1;role={0};host={1};ver=ps" -f $roleWire, $env:COMPUTERNAME
+            $json = '{{"SenderIP":"{0}","SenderPort":{1},"ID":{2},"Type":4,"Data":"{3}"}}' -f $myIp, $Port, [int]$msg.ID, $annData
+            $rb = [System.Text.Encoding]::UTF8.GetBytes($json)
+            [void] $udp.Send($rb, $rb.Length, $remote.Address.ToString(), $remote.Port)
+            $ts = (Get-Date).ToString('HH:mm:ss.fff')
+            Write-Host ("[{0}] <- DISCOVER from {1}:{2}  -> ANNOUNCE {3} :{4}" -f $ts, $remote.Address, $remote.Port, $roleWire, $Port) -ForegroundColor Cyan
+            $count++
+        }
+    } finally {
+        $udp.Close()
+        Write-Host ("stopped. answered {0} discovery ping(s)." -f $count) -ForegroundColor Green
+    }
+}
+
+switch ($Mode) {
+    'Receiver'  { Invoke-ReceiverMode }
+    'Responder' { Invoke-ResponderMode }
+    default     { Invoke-SenderMode }
+}

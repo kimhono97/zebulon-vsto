@@ -23,11 +23,23 @@ namespace ZebulonVSTO.Sync {
         private int _remotePort;
         private SyncMode _mode;
 
+        // Display-only label for the current remote (e.g. a discovered peer's
+        // host name). NOT part of the wire protocol — purely for the ribbon's
+        // status line. Set by the setup wizard before StartSync.
+        private string _remoteLabel = "";
+
         // Host-provided collaborators, wired via Attach() at add-in startup so
         // this class carries no compile-time dependency on the VSTO Globals.
         private ISyncLogger _logger;
         private ISlideController _controller;
+        private IStatusObserver _statusObserver;
         private bool _allowCustomCommands;
+
+        // Most recent sender seen while in RECEIVER mode (display-only, for the
+        // ribbon's status line). Written on the receive thread, read on the UI
+        // thread; a torn read is harmless since it only drives a label.
+        private string _lastPeerIP = "";
+        private int _lastPeerPort;
 
         private SyncManager() {
             _receiveThread = null;
@@ -46,9 +58,11 @@ namespace ZebulonVSTO.Sync {
         /// received commands. <paramref name="allowCustomCommands"/> mirrors the
         /// host's debug flag (gates console-issued custom commands).
         /// </summary>
-        public void Attach(ISyncLogger logger, ISlideController controller, bool allowCustomCommands) {
+        public void Attach(ISyncLogger logger, ISlideController controller,
+                           IStatusObserver statusObserver, bool allowCustomCommands) {
             _logger = logger;
             _controller = controller;
+            _statusObserver = statusObserver;
             _allowCustomCommands = allowCustomCommands;
         }
 
@@ -63,6 +77,10 @@ namespace ZebulonVSTO.Sync {
             get { return _remoteIP; }
             set { if (!_running) { _remoteIP = value; } }
         }
+        public string RemoteLabel {
+            get { return _remoteLabel; }
+            set { if (!_running) { _remoteLabel = value ?? ""; } }
+        }
         public int RemotePort {
             get { return _remotePort; }
             set { if (!_running) { _remotePort = value; } }
@@ -70,6 +88,12 @@ namespace ZebulonVSTO.Sync {
         public SyncMode Mode {
             get { return _mode; }
             set { if (!_running) { _mode = value; } }
+        }
+        public string LastPeerIP {
+            get { return _lastPeerIP; }
+        }
+        public int LastPeerPort {
+            get { return _lastPeerPort; }
         }
         public bool IsRunning() {
             return _running;
@@ -92,6 +116,8 @@ namespace ZebulonVSTO.Sync {
                 return false;
             }
 
+            _lastPeerIP = "";
+            _lastPeerPort = 0;
             _running = true;
             _receiveThread = new Thread(ReceiveLoop) { IsBackground = true };
             _receiveThread.Start();
@@ -151,6 +177,7 @@ namespace ZebulonVSTO.Sync {
                     if (message.IsResponse()) {
                         LogMessage("▶RES", message);
                     } else if (_mode == SyncMode.RECEIVER) {
+                        UpdateLastPeer(message.SenderIP, message.SenderPort);
                         LogMessage("▶REQ", message);
                         bool handled = ProcessRequest(message);
                         SendResponse(message, handled);
@@ -206,6 +233,17 @@ namespace ZebulonVSTO.Sync {
             }
             SyncMessage message = CreateSenderMessage(isCustom ? MessageType.CUSTOM : MessageType.REQUEST, data);
             return SendMessage(message);
+        }
+
+        // Track the most recent sender and notify the host only when it changes,
+        // so the ribbon refreshes once per new peer rather than per datagram.
+        private void UpdateLastPeer(string ip, int port) {
+            if (ip == _lastPeerIP && port == _lastPeerPort) {
+                return;
+            }
+            _lastPeerIP = ip;
+            _lastPeerPort = port;
+            _statusObserver?.OnPeerChanged();
         }
 
         private bool ProcessRequest(SyncMessage received) {

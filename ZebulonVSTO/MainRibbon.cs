@@ -1,9 +1,6 @@
 using Microsoft.Office.Core;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Net;
-using System.Net.Sockets;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Office = Microsoft.Office.Core;
@@ -14,18 +11,9 @@ namespace ZebulonVSTO {
     [ComVisible(true)]
     public class MainRibbon : Office.IRibbonExtensibility {
         private Office.IRibbonUI _ribbon;
-        private readonly Dictionary<string, bool> _enableMap;
-
-        // Transient status/error shown in the ribbon's status label; cleared on
-        // the next Start/Stop or settings change.
-        private string _statusMessage;
 
         private SyncManager SyncMng {
             get { return Globals.ThisAddIn.SyncMng; }
-        }
-
-        public MainRibbon() {
-            _enableMap = new Dictionary<string, bool>();
         }
 
         #region IRibbonExtensibility members
@@ -39,24 +27,20 @@ namespace ZebulonVSTO {
         #region Ribbon callbacks
 
         public bool GetEnabled(IRibbonControl c) {
-            string controlId = c.Id;
-            bool enabled;
-            if (!_enableMap.TryGetValue(controlId, out enabled)) {
-                switch (controlId) {
-                    case "DdMode":
-                    case "EbLocalPort":
-                        enabled = true;
-                        break;
-                    case "BtnSync":
-                    case "BtnConsole":
-                    case "EbRemoteIP":
-                    case "EbRemotePort":
-                        enabled = false;
-                        break;
-                }
-                _enableMap.Add(controlId, enabled);
+            switch (c.Id) {
+                case "BtnConsole":
+                    return SyncMng.IsRunning();
             }
-            return enabled;
+            return true;
+        }
+        public bool GetVisible(IRibbonControl c) {
+            switch (c.Id) {
+                // Self/peer lines appear only while running (minimal when stopped).
+                case "LblLocal":
+                case "LblRemote":
+                    return SyncMng.IsRunning();
+            }
+            return true;
         }
         public string GetImage(IRibbonControl c) {
             switch (c.Id) {
@@ -69,80 +53,26 @@ namespace ZebulonVSTO {
             switch (c.Id) {
                 case "BtnSync":
                     return SyncMng.IsRunning() ? "동기화 중지" : "동기화 시작";
-                case "LblStatus":
-                    return BuildStatusText();
+                case "LblState":
+                    return BuildStateLine();
+                case "LblLocal":
+                    return BuildLocalLine();
+                case "LblRemote":
+                    return BuildRemoteLine();
             }
             return "";
-        }
-        public string GetText(IRibbonControl c) {
-            switch (c.Id) {
-                case "EbLocalIP":
-                    return SyncMng.LocalIP;
-                case "EbLocalPort":
-                    return SyncMng.LocalPort.ToString();
-                case "EbRemoteIP":
-                    return SyncMng.RemoteIP;
-                case "EbRemotePort":
-                    return SyncMng.RemotePort.ToString();
-            }
-            return "";
-        }
-        public void OnTextChange(IRibbonControl c, string text) {
-            _statusMessage = null;
-            switch (c.Id) {
-                // EbLocalIP is read-only (auto-detected); no setter case.
-                case "EbLocalPort": {
-                    int port;
-                    if (TryParsePort(text, out port)) {
-                        SyncMng.LocalPort = port;
-                    } else {
-                        _statusMessage = "⚠ 잘못된 로컬 포트 (1–65535)";
-                    }
-                    break;
-                }
-                case "EbRemoteIP": {
-                    IPAddress address;
-                    if (IPAddress.TryParse(text, out address) && address.AddressFamily == AddressFamily.InterNetwork) {
-                        SyncMng.RemoteIP = text;
-                    } else {
-                        _statusMessage = "⚠ 잘못된 원격 IP (IPv4만)";
-                    }
-                    break;
-                }
-                case "EbRemotePort": {
-                    int port;
-                    if (TryParsePort(text, out port)) {
-                        SyncMng.RemotePort = port;
-                    } else {
-                        _statusMessage = "⚠ 잘못된 원격 포트 (1–65535)";
-                    }
-                    break;
-                }
-            }
-            _ribbon?.Invalidate();
-        }
-        public int GetSelectedItemIndex(IRibbonControl c) {
-            switch (c.Id) {
-                case "DdMode":
-                    switch (SyncMng.Mode) {
-                        case SyncManager.SyncMode.SENDER: return 0;
-                        case SyncManager.SyncMode.RECEIVER: return 1;
-                    }
-                    break;
-            }
-            return -1;
         }
         public void OnBtnAction(IRibbonControl c) {
             switch (c.Id) {
                 case "BtnSync":
-                    _statusMessage = null;
                     if (SyncMng.IsRunning()) {
                         Globals.ThisAddIn.HideSyncConsole();
                         SyncMng.StopSync();
-                    } else if (!SyncMng.StartSync()) {
-                        _statusMessage = "⚠ 시작 실패 — 포트 사용 중일 수 있음";
+                    } else {
+                        // Modal wizard collects settings and starts sync on finish.
+                        Globals.ThisAddIn.ShowSetupWizard();
                     }
-                    UpdateSyncSettingsUI();
+                    _ribbon?.Invalidate();
                     break;
                 case "BtnAbout":
                     Globals.ThisAddIn.ShowInfoDlg();
@@ -152,62 +82,45 @@ namespace ZebulonVSTO {
                     break;
             }
         }
-        public void OnDdAction(IRibbonControl c, string selectedId, int selectedIndex) {
-            switch (c.Id) {
-                case "DdMode":
-                    _statusMessage = null;
-                    switch (selectedId) {
-                        case "ModeSender":
-                            SyncMng.Mode = SyncManager.SyncMode.SENDER;
-                            break;
-                        case "ModeReceiver":
-                            SyncMng.Mode = SyncManager.SyncMode.RECEIVER;
-                            break;
-                        default:
-                            SyncMng.Mode = SyncManager.SyncMode.NONE;
-                            break;
-                    }
-                    UpdateSyncSettingsUI();
-                    break;
-            }
+
+        public void Ribbon_Load(Office.IRibbonUI ribbonUI) {
+            _ribbon = ribbonUI;
         }
 
-        private void UpdateSyncSettingsUI() {
-            bool isRunning = SyncMng.IsRunning();
-            bool isSenderMode = SyncMng.Mode == SyncManager.SyncMode.SENDER;
-            bool isReceiverMode = SyncMng.Mode == SyncManager.SyncMode.RECEIVER;
-            UpdateEnableMap("BtnSync", isSenderMode || isReceiverMode);
-            UpdateEnableMap("BtnConsole", isRunning);
-            UpdateEnableMap("DdMode", !isRunning);
-            UpdateEnableMap("EbLocalPort", !isRunning);
-            UpdateEnableMap("EbRemoteIP", !isRunning && isSenderMode);
-            UpdateEnableMap("EbRemotePort", !isRunning && isSenderMode);
-            _ribbon.Invalidate();
+        /// <summary>Refresh the peer status line after a peer change (invoked by
+        /// the host on the UI thread). Cheap — invalidates a single label.</summary>
+        public void RefreshPeerStatus() {
+            _ribbon?.InvalidateControl("LblRemote");
         }
-        private void UpdateEnableMap(string key, bool value) {
-            if (_enableMap.ContainsKey(key)) {
-                _enableMap[key] = value;
-            } else {
-                _enableMap.Add(key, value);
-            }
-        }
-        private string BuildStatusText() {
-            if (!string.IsNullOrEmpty(_statusMessage)) {
-                return _statusMessage;
-            }
+
+        #endregion
+
+        #region Status text
+
+        private string BuildStateLine() {
             if (!SyncMng.IsRunning()) {
                 return "○ 중지됨";
             }
+            return SyncMng.Mode == SyncManager.SyncMode.RECEIVER ? "● 수신 중" : "● 송신 중";
+        }
+        private string BuildLocalLine() {
+            return "로컬  " + SyncMng.LocalIP + " : " + SyncMng.LocalPort;
+        }
+        private string BuildRemoteLine() {
             if (SyncMng.Mode == SyncManager.SyncMode.RECEIVER) {
-                return "● 수신 · " + SyncMng.LocalPort;
+                return string.IsNullOrEmpty(SyncMng.LastPeerIP)
+                    ? "송신자  대기 중…"
+                    : "송신자  " + SyncMng.LastPeerIP;
             }
-            return "● 송신 · →" + SyncMng.RemoteIP + ":" + SyncMng.RemotePort;
-        }
-        private static bool TryParsePort(string text, out int port) {
-            return int.TryParse(text, out port) && port >= 1 && port <= 65535;
-        }
-        public void Ribbon_Load(Office.IRibbonUI ribbonUI) {
-            _ribbon = ribbonUI;
+            // SENDER: show the configured target.
+            if (SyncMng.RemoteIP == SyncDefaults.Broadcast) {
+                return "원격 → 전체(브로드캐스트) : " + SyncMng.RemotePort;
+            }
+            string label = SyncMng.RemoteLabel;
+            if (!string.IsNullOrEmpty(label)) {
+                return "원격 → " + label + "(" + SyncMng.RemoteIP + ") : " + SyncMng.RemotePort;
+            }
+            return "원격 → " + SyncMng.RemoteIP + " : " + SyncMng.RemotePort;
         }
 
         #endregion

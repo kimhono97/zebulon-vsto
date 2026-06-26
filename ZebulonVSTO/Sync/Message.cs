@@ -6,7 +6,10 @@ using System.Text;
 
 namespace ZebulonVSTO.Sync {
     public enum MessageType {
-        CUSTOM, REQUEST, RESPONSE
+        // Existing sync types — order is part of the frozen wire contract.
+        CUSTOM, REQUEST, RESPONSE,
+        // Discovery types (appended; never reorder the values above).
+        DISCOVER, ANNOUNCE
     }
 
     /// <summary>
