@@ -10,6 +10,7 @@
       -Mode Sender    -Port N   ->  emit commands to <Ip>:N  (REPL prompt)
       -Mode Receiver  -Port N   ->  listen on <Ip>:N, log datagrams, reply
       -Mode Responder           ->  answer peer-discovery pings (auto-detect)
+      -Mode Probe               ->  broadcast discovery pings, list responders
 
     SENDER binds an ephemeral local port automatically (so it never collides with
     a receiver) and reads RESPONSEs there. Session commands: help, info, verbose,
@@ -24,6 +25,12 @@
     instance populate the setup wizard's auto-discovery list. It sets SO_REUSEADDR,
     so it can share 8290 with a running add-in on the same host.
 
+    PROBE is the mirror of Responder: it broadcasts a DISCOVER on -DiscoveryPort
+    (8290) and prints every ANNOUNCE it receives (host / sync IP:port / role /
+    version). Use it to prove that a running add-in's discovery responder (its
+    "self-announce") actually answers — something the add-in cannot show by
+    scanning, since it never lists itself.
+
     INTERACTIVE PROMPTS: run with no arguments and the script asks for Mode, then
     Ip and Port (press Enter to accept the shown default). Only the parameters you
     omit are prompted; pass any of -Mode/-Ip/-Port to skip its prompt. A redirected
@@ -31,7 +38,7 @@
     does not block.
 
 .PARAMETER Mode
-    Sender (default), Receiver, or Responder.
+    Sender (default), Receiver, Responder, or Probe.
 
 .PARAMETER Port
     SENDER: the destination it emits to. RECEIVER: the port it listens on.
@@ -66,10 +73,14 @@
 .EXAMPLE
     # Appear as a discoverable RECEIVER (sync port 8291) for the wizard's auto list
     .\Start-SyncSession.ps1 -Mode Responder -Port 8291
+
+.EXAMPLE
+    # Verify a running add-in's discovery responder answers (its self-announce)
+    .\Start-SyncSession.ps1 -Mode Probe
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Sender', 'Receiver', 'Responder')] [string] $Mode = 'Sender',
+    [ValidateSet('Sender', 'Receiver', 'Responder', 'Probe')] [string] $Mode = 'Sender',
     [int]    $Port          = 8291,
     [string] $Ip            = '',
     [ValidateSet('Success', 'Failed', 'None')] [string] $Reply = 'Success',
@@ -383,6 +394,85 @@ function Invoke-ResponderMode {
     }
 }
 
+function Invoke-ProbeMode {
+    try {
+        $udp = New-Object System.Net.Sockets.UdpClient   # ephemeral local port
+        $udp.EnableBroadcast = $true
+        $udp.Client.ReceiveTimeout = 300
+    } catch {
+        Write-Host ("ERROR: cannot open a probe socket - {0}" -f $_.Exception.GetBaseException().Message) -ForegroundColor Red
+        return
+    }
+    $myId = [Guid]::NewGuid().ToString('N')   # per-process id (self-recognition)
+    $myIp = Get-LocalIPv4
+    $broadcast = New-Object System.Net.IPEndPoint([System.Net.IPAddress]::Broadcast, $DiscoveryPort)
+    $remote = New-Object System.Net.IPEndPoint([System.Net.IPAddress]::Any, 0)
+    $seen = @{}
+
+    $canPollKeys = $false
+    try { $canPollKeys = -not [Console]::IsInputRedirected } catch { $canPollKeys = $false }
+    $stopHint = if ($canPollKeys) { "Press 'q' or Esc to stop." } else { 'Press Ctrl+C to stop.' }
+    if ($RunSeconds -gt 0) { $stopHint = "Auto-stops in $RunSeconds s. $stopHint" }
+    Write-Host ("ZebulonVSTO discovery mirror [PROBE] -> broadcasting DISCOVER to 255.255.255.255:{0}" -f $DiscoveryPort) -ForegroundColor Green
+    Write-Host $stopHint
+
+    $count = 0
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    $lastSend = [int64](-10000)   # force an immediate first ping
+    try {
+        while ($true) {
+            if ($canPollKeys) {
+                try {
+                    if ([Console]::KeyAvailable) {
+                        $k = [Console]::ReadKey($true)
+                        if ($k.Key -eq 'Q' -or $k.Key -eq 'Escape') { break }
+                    }
+                } catch { $canPollKeys = $false }
+            }
+            if ($RunSeconds -gt 0 -and $sw.Elapsed.TotalSeconds -ge $RunSeconds) { break }
+
+            # Re-broadcast a DISCOVER about once a second (UDP is lossy; peers may
+            # start late). Replies are buffered between sends.
+            if (($sw.ElapsedMilliseconds - $lastSend) -ge 1000) {
+                $data = "ZSYNC1;q=1;id={0}" -f $myId
+                $json = '{{"SenderIP":"{0}","SenderPort":{1},"ID":1,"Type":3,"Data":"{2}"}}' -f $myIp, $DiscoveryPort, $data
+                $b = [System.Text.Encoding]::UTF8.GetBytes($json)
+                try { [void] $udp.Send($b, $b.Length, $broadcast) } catch { }
+                $lastSend = $sw.ElapsedMilliseconds
+            }
+
+            try {
+                $bytes = $udp.Receive([ref] $remote)
+            } catch [System.Net.Sockets.SocketException] {
+                continue   # ReceiveTimeout elapsed; loop to re-ping / poll keys
+            } catch [System.ObjectDisposedException] {
+                break
+            }
+
+            $raw = [System.Text.Encoding]::UTF8.GetString($bytes)
+            $msg = $null
+            try { $msg = $raw | ConvertFrom-Json } catch { }
+            if ($null -eq $msg -or [int]$msg.Type -ne 4) { continue }   # ANNOUNCE only
+
+            $payload = ConvertFrom-DiscoveryPayload ([string]$msg.Data)
+            if (-not $payload.Valid) { continue }
+            if ($payload.InstanceId -eq $myId) { continue }   # our own (shouldn't happen)
+
+            $key = "{0}:{1}" -f $msg.SenderIP, $msg.SenderPort
+            if ($seen.ContainsKey($key)) { continue }
+            $seen[$key] = $true
+            $count++
+            $ts = (Get-Date).ToString('HH:mm:ss.fff')
+            $role = if ($payload.Role) { $payload.Role } else { '?' }
+            Write-Host ("[{0}] ANNOUNCE  {1}  {2}:{3}  role={4}  ver={5}" -f `
+                $ts, $payload.Host, $msg.SenderIP, $msg.SenderPort, $role, $payload.Ver) -ForegroundColor Green
+        }
+    } finally {
+        $udp.Close()
+        Write-Host ("stopped. discovered {0} peer(s)." -f $count) -ForegroundColor Green
+    }
+}
+
 function Read-ValueWithDefault([string] $prompt, [string] $default) {
     $label = if ([string]::IsNullOrEmpty($default)) { $prompt } else { "$prompt [$default]" }
     $v = Read-Host $label
@@ -397,7 +487,8 @@ function Read-ModeInteractive {
         Write-Host '  1) Sender     emit commands to a receiver (REPL prompt)'
         Write-Host '  2) Receiver   listen on a port and reply to commands'
         Write-Host '  3) Responder  answer discovery pings (auto-detect stand-in)'
-        $v = (Read-Host 'Enter 1/2/3 [1]').Trim().ToLowerInvariant()
+        Write-Host '  4) Probe      broadcast discovery pings, list responders'
+        $v = (Read-Host 'Enter 1/2/3/4 [1]').Trim().ToLowerInvariant()
         switch ($v) {
             ''          { return 'Sender' }
             '1'         { return 'Sender' }
@@ -406,7 +497,9 @@ function Read-ModeInteractive {
             'receiver'  { return 'Receiver' }
             '3'         { return 'Responder' }
             'responder' { return 'Responder' }
-            default     { Write-Host 'Please enter 1, 2, or 3.' -ForegroundColor Yellow }
+            '4'         { return 'Probe' }
+            'probe'     { return 'Probe' }
+            default     { Write-Host 'Please enter 1, 2, 3, or 4.' -ForegroundColor Yellow }
         }
     }
 }
@@ -430,26 +523,31 @@ try { $interactive = -not [Console]::IsInputRedirected } catch { $interactive = 
 if ($interactive) {
     if (-not $PSBoundParameters.ContainsKey('Mode')) { $Mode = Read-ModeInteractive }
 
-    if (-not $PSBoundParameters.ContainsKey('Ip')) {
-        if ($Mode -eq 'Sender') {
-            $Ip = Read-ValueWithDefault 'Destination IP (blank = 127.0.0.1; 255.255.255.255 = broadcast)' ''
-        } else {
-            $Ip = Read-ValueWithDefault 'Bind interface (blank = all interfaces / 0.0.0.0)' ''
+    # Probe targets -DiscoveryPort (8290) from an ephemeral socket — it uses
+    # neither -Ip nor -Port, so don't prompt for them.
+    if ($Mode -ne 'Probe') {
+        if (-not $PSBoundParameters.ContainsKey('Ip')) {
+            if ($Mode -eq 'Sender') {
+                $Ip = Read-ValueWithDefault 'Destination IP (blank = 127.0.0.1; 255.255.255.255 = broadcast)' ''
+            } else {
+                $Ip = Read-ValueWithDefault 'Bind interface (blank = all interfaces / 0.0.0.0)' ''
+            }
         }
-    }
 
-    if (-not $PSBoundParameters.ContainsKey('Port')) {
-        $portPrompt = switch ($Mode) {
-            'Sender'    { 'Destination port' }
-            'Receiver'  { 'Listen port' }
-            'Responder' { 'Advertised sync port' }
+        if (-not $PSBoundParameters.ContainsKey('Port')) {
+            $portPrompt = switch ($Mode) {
+                'Sender'    { 'Destination port' }
+                'Receiver'  { 'Listen port' }
+                'Responder' { 'Advertised sync port' }
+            }
+            $Port = Read-PortInteractive $portPrompt 8291
         }
-        $Port = Read-PortInteractive $portPrompt 8291
     }
 }
 
 switch ($Mode) {
     'Receiver'  { Invoke-ReceiverMode }
     'Responder' { Invoke-ResponderMode }
+    'Probe'     { Invoke-ProbeMode }
     default     { Invoke-SenderMode }
 }
