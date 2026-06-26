@@ -24,6 +24,12 @@
     instance populate the setup wizard's auto-discovery list. It sets SO_REUSEADDR,
     so it can share 8290 with a running add-in on the same host.
 
+    INTERACTIVE PROMPTS: run with no arguments and the script asks for Mode, then
+    Ip and Port (press Enter to accept the shown default). Only the parameters you
+    omit are prompted; pass any of -Mode/-Ip/-Port to skip its prompt. A redirected
+    / non-interactive session never prompts — it uses the defaults — so automation
+    does not block.
+
 .PARAMETER Mode
     Sender (default), Receiver, or Responder.
 
@@ -281,7 +287,7 @@ function Invoke-ReceiverMode {
 
 function ConvertFrom-DiscoveryPayload([string] $data) {
     # Parse "ZSYNC1;key=value;..." — mirror of DiscoveryPayload.Parse.
-    $result = @{ Valid = $false; Role = ''; Host = ''; Ver = ''; Want = ''; IsQuery = $false }
+    $result = @{ Valid = $false; Role = ''; Host = ''; Ver = ''; Want = ''; IsQuery = $false; InstanceId = '' }
     if ([string]::IsNullOrEmpty($data)) { return $result }
     $tokens = $data -split ';'
     if ($tokens[0] -cne 'ZSYNC1') { return $result }   # magic is case-sensitive
@@ -298,6 +304,7 @@ function ConvertFrom-DiscoveryPayload([string] $data) {
             'ver'  { $result.Ver = $v }
             'want' { $result.Want = $v }
             'q'    { $result.IsQuery = ($v -eq '1') }
+            'id'   { $result.InstanceId = $v }
         }
     }
     return $result
@@ -321,6 +328,7 @@ function Invoke-ResponderMode {
     $remote = New-Object System.Net.IPEndPoint([System.Net.IPAddress]::Any, 0)
     $myIp = if ($bindIp -and $bindIp -ne '0.0.0.0') { $bindIp } else { Get-LocalIPv4 }
     $roleWire = $Role.ToUpperInvariant()
+    $myId = [Guid]::NewGuid().ToString('N')   # per-process id (self-recognition, not IP)
 
     $canPollKeys = $false
     try { $canPollKeys = -not [Console]::IsInputRedirected } catch { $canPollKeys = $false }
@@ -356,11 +364,12 @@ function Invoke-ResponderMode {
 
             $payload = ConvertFrom-DiscoveryPayload ([string]$msg.Data)
             if (-not $payload.Valid -or -not $payload.IsQuery) { continue }
-            # Don't answer our own broadcast, and honor an optional role filter.
-            if ([string]$msg.SenderIP -eq $myIp) { continue }
+            # Skip only our own broadcast (by InstanceId, not IP — a same-host
+            # add-in shares our IP but has a different id), and honor a role filter.
+            if ($payload.InstanceId -eq $myId) { continue }
             if ($payload.Want -and $payload.Want.ToUpperInvariant() -ne $roleWire) { continue }
 
-            $annData = "ZSYNC1;role={0};host={1};ver=ps" -f $roleWire, $env:COMPUTERNAME
+            $annData = "ZSYNC1;role={0};host={1};ver=ps;id={2}" -f $roleWire, $env:COMPUTERNAME, $myId
             $json = '{{"SenderIP":"{0}","SenderPort":{1},"ID":{2},"Type":4,"Data":"{3}"}}' -f $myIp, $Port, [int]$msg.ID, $annData
             $rb = [System.Text.Encoding]::UTF8.GetBytes($json)
             [void] $udp.Send($rb, $rb.Length, $remote.Address.ToString(), $remote.Port)
@@ -371,6 +380,71 @@ function Invoke-ResponderMode {
     } finally {
         $udp.Close()
         Write-Host ("stopped. answered {0} discovery ping(s)." -f $count) -ForegroundColor Green
+    }
+}
+
+function Read-ValueWithDefault([string] $prompt, [string] $default) {
+    $label = if ([string]::IsNullOrEmpty($default)) { $prompt } else { "$prompt [$default]" }
+    $v = Read-Host $label
+    if ([string]::IsNullOrWhiteSpace($v)) { return $default }
+    return $v.Trim()
+}
+
+function Read-ModeInteractive {
+    while ($true) {
+        Write-Host ''
+        Write-Host 'Select a mode:' -ForegroundColor Cyan
+        Write-Host '  1) Sender     emit commands to a receiver (REPL prompt)'
+        Write-Host '  2) Receiver   listen on a port and reply to commands'
+        Write-Host '  3) Responder  answer discovery pings (auto-detect stand-in)'
+        $v = (Read-Host 'Enter 1/2/3 [1]').Trim().ToLowerInvariant()
+        switch ($v) {
+            ''          { return 'Sender' }
+            '1'         { return 'Sender' }
+            'sender'    { return 'Sender' }
+            '2'         { return 'Receiver' }
+            'receiver'  { return 'Receiver' }
+            '3'         { return 'Responder' }
+            'responder' { return 'Responder' }
+            default     { Write-Host 'Please enter 1, 2, or 3.' -ForegroundColor Yellow }
+        }
+    }
+}
+
+function Read-PortInteractive([string] $prompt, [int] $default) {
+    while ($true) {
+        $v = (Read-Host ("{0} [{1}]" -f $prompt, $default)).Trim()
+        if ([string]::IsNullOrEmpty($v)) { return $default }
+        $n = 0
+        if ([int]::TryParse($v, [ref] $n) -and $n -ge 1 -and $n -le 65535) { return $n }
+        Write-Host 'Port must be an integer 1-65535.' -ForegroundColor Yellow
+    }
+}
+
+# Interactively fill -Mode/-Ip/-Port when they were omitted AND the session is
+# interactive. Explicitly passed args are kept as-is; a redirected / non-interactive
+# session keeps the defaults so automation never blocks on a prompt.
+$interactive = $false
+try { $interactive = -not [Console]::IsInputRedirected } catch { $interactive = $false }
+
+if ($interactive) {
+    if (-not $PSBoundParameters.ContainsKey('Mode')) { $Mode = Read-ModeInteractive }
+
+    if (-not $PSBoundParameters.ContainsKey('Ip')) {
+        if ($Mode -eq 'Sender') {
+            $Ip = Read-ValueWithDefault 'Destination IP (blank = 127.0.0.1; 255.255.255.255 = broadcast)' ''
+        } else {
+            $Ip = Read-ValueWithDefault 'Bind interface (blank = all interfaces / 0.0.0.0)' ''
+        }
+    }
+
+    if (-not $PSBoundParameters.ContainsKey('Port')) {
+        $portPrompt = switch ($Mode) {
+            'Sender'    { 'Destination port' }
+            'Receiver'  { 'Listen port' }
+            'Responder' { 'Advertised sync port' }
+        }
+        $Port = Read-PortInteractive $portPrompt 8291
     }
 }
 
