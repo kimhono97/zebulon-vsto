@@ -137,6 +137,7 @@ Release packaging is a **local** step — run `Build-Release.ps1` (the VSTO add-
 - **Install method** (per-user, no admin): `deploy/Install.ps1` trusts the bundled self-signed `.cer` (CurrentUser Root + TrustedPublisher), copies the add-in to `%LOCALAPPDATA%\ZebulonVSTO`, and registers it under `HKCU\Software\Microsoft\Office\PowerPoint\Addins\ZebulonVSTO` (`Manifest=…\ZebulonVSTO.vsto|vstolocal`, `LoadBehavior=3`). `deploy/Uninstall.ps1` reverses it. Update = re-run `Install.ps1` over a newer extracted package. Targets need the **VSTO 2010 Runtime**.
 - Manifests are Authenticode-signed (`SignManifests=true`) with the repo-tracked self-signed **`ZebulonVSTO_TemporaryKey.pfx`** (`CN=ZebulonVSTO`, thumbprint `BDEB7C77F1C2347FF7B935F540D8BF513648F3DC`, valid through 2031-06-25). For production/external distribution, replace it with a real code-signing certificate and update `ManifestCertificateThumbprint`; then only the exported `.cer` changes and the install flow is unchanged.
 - The deploy bundle ships its own operator-facing docs — `deploy/README.txt` (Korean) and `deploy/AGENTS.md` (English) — distinct from this repo-level file.
+- **Release notes**: follow `docs/RELEASE_NOTES_GUIDE.md` (Korean, end-user facing) when writing them — published on GitHub Releases per tag `v<version>`, with the `dist/ZebulonVSTO-<version>.zip` attached.
 
 ## Conventions & Cautions
 
