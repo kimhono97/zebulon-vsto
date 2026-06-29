@@ -12,7 +12,7 @@ A **VSTO (Visual Studio Tools for Office) PowerPoint COM add-in** written in C# 
 | Build tool | **Visual Studio / MSBuild** — *not* `dotnet` (VSTO + COM interop) |
 | Verified IDE | Visual Studio 2022+ — confirmed on **VS 2026 Community v18.1** |
 | Dependencies | **framework-only** — no NuGet packages; JSON via built-in `System.Runtime.Serialization` |
-| Host | PowerPoint **2013+**; default UDP port **8291** |
+| Host | PowerPoint **2013+**; default UDP sync port **8291**, discovery port **8290** |
 | Tests | xUnit unit tests for pure logic in `tests/ZebulonVSTO.Tests` (run via `dotnet test`); COM runtime still verified manually via F5 |
 | License | MIT |
 
@@ -47,7 +47,7 @@ Debug → `ZebulonVSTO/bin/Debug/`, Release → `ZebulonVSTO/bin/Release/`. Each
 
 ### Runtime-testing the sync feature
 A single F5 instance can't exercise SENDER↔RECEIVER traffic by itself — you need a peer. Simplest single-machine test:
-1. F5 → in PowerPoint, **Add-Ins** tab → **Zebulon** → **Sync** group: set **Mode = Receiver**, **Local Port = 8291**, click **Start Sync**. Open a deck with ≥2 slides.
+1. F5 → in PowerPoint, **Add-Ins** tab → **Zebulon** → **Sync** group → click **동기화 시작**. In the wizard pick **수신 (Receiver)**, keep **수신 포트 = 8291**, click **시작**. Open a deck with ≥2 slides. (To exercise the SENDER auto-discovery list, run a `Responder` stand-in — see below — then in a second instance choose **송신 → 자동으로 찾기**.)
 2. From a separate terminal, send a UDP datagram to `127.0.0.1:8291` carrying a REQUEST `SyncMessage` (PascalCase fields, `Type:1`):
    ```powershell
    $json = '{"SenderIP":"127.0.0.1","SenderPort":8291,"ID":1,"Type":1,"Data":"select 2"}'
@@ -66,16 +66,20 @@ A single F5 instance can't exercise SENDER↔RECEIVER traffic by itself — you 
    # RECEIVER — listen on -Port, log datagrams, reply (stands in for a 2nd PowerPoint).
    # -Reply Success|Failed|None, -RunSeconds N; -Ip sets the bind interface / send target.
    ./tests/manual/Start-SyncSession.ps1 -Mode Receiver -Port 8291
+
+   # RESPONDER — answer discovery pings on 8290 so the wizard's auto list finds a peer.
+   # -Role Receiver|Sender|Idle (advertised), -Port = advertised sync port. SO_REUSEADDR set.
+   ./tests/manual/Start-SyncSession.ps1 -Mode Responder -Port 8291
    ```
    Same-machine note: the add-in binds its Local Port (8291) in BOTH modes, so a PS peer on the same box must use a different `-Port` than the running add-in (or run on another machine).
 3. Alternatively, run a second PowerPoint instance in **Sender** mode and drive it from its Sync Console.
 
 ### Unit tests
-The pure, COM-free logic (`CommandParser`, `SyncMessage` serialization) has xUnit coverage in `tests/ZebulonVSTO.Tests`:
+The pure, COM-free logic (`CommandParser`, `SyncMessage` serialization, `DiscoveryProtocol` payloads, `InputValidation`) has xUnit coverage in `tests/ZebulonVSTO.Tests`:
 ```bash
 dotnet test tests/ZebulonVSTO.Tests
 ```
-- The test project is **SDK-style (`net472`) and deliberately NOT in `ZebulonVSTO.sln`**, so it builds with the modern `dotnet` toolchain independently of the VSTO/MSBuild build. It **link-compiles** the source files under test (`Sync/SyncDefaults.cs`, `Sync/CommandParser.cs`, `Sync/Message.cs`) rather than referencing the add-in DLL — so `dotnet test` never touches the VSTO toolchain.
+- The test project is **SDK-style (`net472`) and deliberately NOT in `ZebulonVSTO.sln`**, so it builds with the modern `dotnet` toolchain independently of the VSTO/MSBuild build. It **link-compiles** the source files under test (`Sync/SyncDefaults.cs`, `Sync/CommandParser.cs`, `Sync/Message.cs`, `Sync/DiscoveryProtocol.cs`, `Sync/InputValidation.cs`) rather than referencing the add-in DLL — so `dotnet test` never touches the VSTO toolchain.
 - Anything requiring PowerPoint/COM (`SyncManager` networking, `ThisAddIn` slide actions) is **not** unit-tested — verify those via F5 as above.
 - `Serialized_ContainsFrozenWireFieldName` guards the on-the-wire JSON field names; if it fails, peer-to-peer sync is broken — fix the code, not the test.
 
@@ -93,8 +97,13 @@ ZebulonVSTO/
     SyncManager.cs          ← UDP transport singleton (send/receive, modes); collaborators injected via Attach()
     Message.cs              ← SyncMessage wire DTO + MessageType enum (DataContractJsonSerializer)
     CommandParser.cs        ← pure command-string parser → ParsedCommand/CommandKind (unit-tested)
-    SyncContracts.cs        ← ISyncLogger + ISlideController (host-implemented seams; decouple SyncManager from Globals)
-    SyncDefaults.cs         ← shared default IP/port constants (COM-free)
+    DiscoveryProtocol.cs    ← pure ZSYNC1 ping/announce payload parser → DiscoveryPayload/DiscoveryRole (unit-tested)
+    DiscoveryResponder.cs   ← always-on UDP responder on 8290 (answers DISCOVER with ANNOUNCE)
+    DiscoveryScanner.cs     ← broadcasts DISCOVER, collects ANNOUNCE → DiscoveredPeer (used by the wizard)
+    InputValidation.cs      ← pure port/IPv4 validators (unit-tested; shared by the wizard)
+    SyncContracts.cs        ← ISyncLogger + ISlideController + IStatusObserver (host-implemented seams)
+    SyncDefaults.cs         ← shared default IP/port constants incl. DiscoveryPort=8290 (COM-free)
+    SetupWizard.xaml(.cs)   ← WPF setup wizard (mode → manual/auto-discovery → start)
     SyncConsole.xaml(.cs)   ← WPF debug console (log + custom command input)
   Properties/               ← AssemblyInfo, (empty) Settings & Resources scaffolding
   app.config                ← empty configuration (no binding redirects; see Dependencies)
@@ -108,7 +117,9 @@ tests/
 - **Wire format** (`Sync/Message.cs`): `SyncMessage` serialized as UTF-8 JSON via the framework **`DataContractJsonSerializer`** (no third-party package). Fields `SenderIP`, `SenderPort`, `ID`, `Type`, `Data` are pinned with `[DataMember(Name=...)]`. `MessageType` enum is `CUSTOM=0, REQUEST=1, RESPONSE=2`. **The field names are a frozen on-the-wire contract between instances — do NOT rename them** (member *order* in the JSON is irrelevant; parsing is by name). The `Serialized_ContainsFrozenWireFieldName` test guards this.
 - **Commands** (RECEIVER side): the raw command string is parsed by the pure `CommandParser.Parse` → `ParsedCommand` (`alert <text>`, `select <n>`, `showslide <n>`, `hideslide`; verbs case-insensitive via `ToLowerInvariant`). `SyncManager.ProcessRequest` switches on `ParsedCommand.Kind` and dispatches to `ISlideController`. RECEIVER always replies with a RESPONSE (`Success`/`Failed`).
 - **Threading**: a single **background** thread runs the blocking `UdpClient.Receive` loop. Shutdown is **cooperative** (no `Thread.Abort`): `StopSync` flips a `volatile bool`, calls `UdpClient.Close()` to unblock `Receive` (caught as `ObjectDisposedException`), then `Thread.Join`s. Message IDs use `Interlocked.Increment`. **Any PowerPoint Interop call triggered by a received message MUST be marshalled to the UI thread via `ThisAddIn`'s `Dispatcher`** (see `SelectSlide`/`ShowSlide`/`HideSlide`/`Alert`) — never call Interop directly from the receive thread.
-- **Ribbon** attaches to the built-in Add-Ins tab (`idMso="TabAddIns"`) relabeled **"Zebulon"**, groups `GroupInfo`/`GroupSync` (Korean labels). It includes a status `labelControl` (`LblStatus`, rendered by `GetLabel`/`BuildStatusText`) and input validation in `OnTextChange` (port range 1–65535, IPv4-only remote IP) that surfaces errors in the status line rather than throwing. `MainRibbon.xml` (control IDs + `onAction`/`getEnabled`/… callback names) and `MainRibbon.cs` (callbacks) **must stay in sync**; the public callback method names are bound by the XML and must not be renamed. Adding a control means editing both, plus the `_enableMap` logic.
+- **Ribbon** attaches to the built-in Add-Ins tab (`idMso="TabAddIns"`) relabeled **"Zebulon"**, groups `GroupInfo`/`GroupSync` (Korean labels). It is intentionally minimal: a large `BtnSync` (stopped → opens the **setup wizard**; running → `StopSync`), `BtnConsole`, and a 3-row status strip (`LblState`/`LblLocal`/`LblRemote`) aligned to the large button's height. `LblLocal`/`LblRemote` use `getVisible` to appear only while running (minimal when stopped, self/peer IP·port·role while running). The sender's remote line is set once at start; the receiver's "last sender" line is refreshed via the `IStatusObserver` seam (`SyncManager` → `ThisAddIn.OnPeerChanged` → dispatcher → `MainRibbon.RefreshPeerStatus` → `InvalidateControl`), and only on a peer **change** (no per-datagram flicker). All connection settings (mode, ports, remote IP) now live in the wizard, **not** the ribbon — the old `DdMode`/`Eb*` edit boxes and `OnTextChange`/`_enableMap` are gone; validation moved to `Sync/InputValidation.cs`. `MainRibbon.xml` (control IDs + callback names) and `MainRibbon.cs` (callbacks) **must stay in sync**; the public callback method names are bound by the XML and must not be renamed.
+- **Setup wizard** (`Sync/SetupWizard.xaml`) is a modal WPF window (owned by the PowerPoint HWND) launched from `BtnSync`. Flow is **2-screen asymmetric**: mode select → (RECEIVER: pick a port) or (SENDER: a `자동/수동` toggle — auto-discovery results list with a broadcast-to-all option + explicit port, or manual IP/port entry). On finish it writes settings onto `SyncManager` and calls `StartSync`; on a start failure it stays open. A `SyncManager.RemoteLabel` (display-only, **not** on the wire) carries a discovered peer's host name for the ribbon.
+- **Discovery** (peer auto-detect) is **additive** to the proven sync path. An always-on `DiscoveryResponder` binds **8290** (`SO_REUSEADDR`) from startup and answers each `DISCOVER` with an `ANNOUNCE` (its sync IP/port + role) unicast to the datagram source; `DiscoveryScanner` broadcasts `DISCOVER` ×3 and collects replies for the wizard. Payloads are the pure `ZSYNC1;key=value` format (`DiscoveryProtocol.cs`); `MessageType` gained `DISCOVER=3`/`ANNOUNCE=4` (appended — never reorder). **Auto-discovery only works new-build-to-new-build on the same subnet** (old peers run no responder and use a different port); **manual entry is the universal fallback**. Limited broadcast (`255.255.255.255`) can be blocked by AP isolation/firewalls — the wizard falls back to manual on 0 results.
 - **`DebugMode`** (`ThisAddIn.cs`) gates whether the console may send custom (non-SENDER) commands; it is passed to `SyncManager.Attach`. It is **build-gated via `#if DEBUG`** — `true` in Debug, **`false` in Release** (the shipped build) — so production cannot inject console commands.
 
 ## Dependencies
@@ -158,6 +169,7 @@ Rationale: English agent-facing content improves token efficiency and agent comp
 
 ## Done (recent)
 
+- **Auto-discovery + setup wizard + ribbon redesign**: peer auto-detect (always-on `DiscoveryResponder` on 8290 / `DiscoveryScanner` / pure `ZSYNC1` `DiscoveryProtocol`), a modal WPF `SetupWizard` (manual entry kept as the universal fallback), and a minimal ribbon with a live self/peer status strip refreshed via the `IStatusObserver` seam. Full design spec: `docs/auto-discovery-spec.md`. Auto path is new-build-to-new-build on the same subnet; manual works cross-version.
 - **CI** (`.github/workflows/ci.yml`): runs `dotnet test tests/ZebulonVSTO.Tests` on `windows-latest` for pushes to main/update and PRs to main. The VSTO add-in build stays local (hosted runners lack the VSTO targets).
 - **Release packaging**: `Build-Release.ps1` + `deploy/` (see *Deployment*).
 - **`DebugMode`**: build-gated off in Release.

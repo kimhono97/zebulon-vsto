@@ -1,0 +1,117 @@
+<Window x:Class="ZebulonVSTO.Sync.SetupWizard"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="clr-namespace:ZebulonVSTO.Sync"
+    mc:Ignorable="d"
+    FontFamily="Malgun Gothic" FontSize="13"
+    Height="460" Width="500" MinHeight="420" MinWidth="460"
+    Title="동기화 시작" ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
+    Closed="Window_Closed">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ===== Content area: one panel visible at a time ===== -->
+        <Grid Grid.Row="0">
+
+            <!-- Screen 1: mode select -->
+            <StackPanel x:Name="ModePanel">
+                <TextBlock Text="어떤 역할로 참여하시겠어요?" FontSize="16" FontWeight="Bold" Margin="0,4,0,16"/>
+                <Button x:Name="SenderCard" Height="86" Margin="0,0,0,12" Click="SenderCard_Click" HorizontalContentAlignment="Left">
+                    <StackPanel Margin="10,0,0,0">
+                        <TextBlock Text="📤  송신 (발표자)" FontSize="15" FontWeight="Bold"/>
+                        <TextBlock Text="이 PC의 슬라이드 조작을 다른 PC로 전송합니다." Margin="0,6,0,0" Foreground="#FF555555"/>
+                    </StackPanel>
+                </Button>
+                <Button x:Name="ReceiverCard" Height="86" Click="ReceiverCard_Click" HorizontalContentAlignment="Left">
+                    <StackPanel Margin="10,0,0,0">
+                        <TextBlock Text="📥  수신 (청중)" FontSize="15" FontWeight="Bold"/>
+                        <TextBlock Text="발표자 PC의 조작을 따라갑니다." Margin="0,6,0,0" Foreground="#FF555555"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+
+            <!-- Screen 2A: receiver setup -->
+            <StackPanel x:Name="ReceiverPanel" Visibility="Collapsed">
+                <TextBlock Text="수신 설정" FontSize="16" FontWeight="Bold" Margin="0,4,0,16"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                    <TextBlock Text="로컬 IP" Width="130" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="LocalIpText" VerticalAlignment="Center" Foreground="#FF555555"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                    <TextBlock Text="수신 포트" Width="130" VerticalAlignment="Center"/>
+                    <TextBox x:Name="ReceiverPortBox" Width="120" InputMethod.PreferredImeState="Off"/>
+                </StackPanel>
+                <TextBlock x:Name="ReceiverError" Foreground="#FFCC0000" TextWrapping="Wrap" Visibility="Collapsed" Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <!-- Screen 2B: sender setup -->
+            <StackPanel x:Name="SenderPanel" Visibility="Collapsed">
+                <TextBlock Text="송신 설정" FontSize="16" FontWeight="Bold" Margin="0,4,0,12"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                    <RadioButton x:Name="AutoRadio" Content="자동으로 찾기" GroupName="Method" IsChecked="True"
+                                 Margin="0,0,20,0" VerticalAlignment="Center" Checked="AutoRadio_Checked"/>
+                    <RadioButton x:Name="ManualRadio" Content="직접 입력" GroupName="Method"
+                                 VerticalAlignment="Center" Checked="ManualRadio_Checked"/>
+                </StackPanel>
+                <Separator Margin="0,0,0,10"/>
+
+                <!-- Auto sub-panel -->
+                <StackPanel x:Name="AutoSubPanel">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                        <TextBlock Text="검색 결과" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <Button x:Name="RescanButton" Content="↻ 다시 검색" Margin="12,0,0,0" Padding="8,2" Click="RescanButton_Click"/>
+                        <TextBlock x:Name="ScanStatusText" Margin="12,0,0,0" VerticalAlignment="Center" Foreground="#FF777777"/>
+                    </StackPanel>
+                    <RadioButton x:Name="BroadcastOption" GroupName="Target" Margin="0,2,0,6" VerticalContentAlignment="Center" Checked="BroadcastOption_Checked">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="모든 수신기로 전송 (브로드캐스트 : " VerticalAlignment="Center"/>
+                            <TextBox x:Name="BroadcastPortBox" Width="64" InputMethod.PreferredImeState="Off"/>
+                            <TextBlock Text=")" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </RadioButton>
+                    <ListBox x:Name="PeerListBox" Height="120" SelectionChanged="PeerListBox_SelectionChanged">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="IsEnabled" Value="{Binding IsSelectable}"/>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                    </ListBox>
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                        <TextBlock Text="로컬 포트(응답 수신)" Width="130" VerticalAlignment="Center"/>
+                        <TextBox x:Name="SenderLocalPortBox" Width="120" InputMethod.PreferredImeState="Off"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Manual sub-panel -->
+                <StackPanel x:Name="ManualSubPanel" Visibility="Collapsed">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <TextBlock Text="원격 IP" Width="130" VerticalAlignment="Center"/>
+                        <TextBox x:Name="ManualRemoteIpBox" Width="160" InputMethod.PreferredImeState="Off"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <TextBlock Text="원격 포트" Width="130" VerticalAlignment="Center"/>
+                        <TextBox x:Name="ManualRemotePortBox" Width="120" InputMethod.PreferredImeState="Off"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="로컬 포트" Width="130" VerticalAlignment="Center"/>
+                        <TextBox x:Name="ManualLocalPortBox" Width="120" InputMethod.PreferredImeState="Off"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <TextBlock x:Name="SenderError" Foreground="#FFCC0000" TextWrapping="Wrap" Visibility="Collapsed" Margin="0,10,0,0"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- ===== Footer navigation ===== -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button x:Name="BackButton" Content="&lt; 뒤로" Width="80" Margin="0,0,8,0" Click="BackButton_Click"/>
+            <Button x:Name="CancelButton" Content="취소" Width="80" Margin="0,0,8,0" Click="CancelButton_Click"/>
+            <Button x:Name="StartButton" Content="시작" Width="90" FontWeight="Bold" Click="StartButton_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

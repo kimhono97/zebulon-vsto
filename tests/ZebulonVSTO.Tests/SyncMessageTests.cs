@@ -73,6 +73,8 @@ namespace ZebulonVSTO.Tests {
         [InlineData(MessageType.CUSTOM, "\"Type\":0")]
         [InlineData(MessageType.REQUEST, "\"Type\":1")]
         [InlineData(MessageType.RESPONSE, "\"Type\":2")]
+        [InlineData(MessageType.DISCOVER, "\"Type\":3")]  // appended for discovery; must stay 3
+        [InlineData(MessageType.ANNOUNCE, "\"Type\":4")]  // appended for discovery; must stay 4
         public void Serialized_PinsNumericTypeEncoding(MessageType type, string expectedFragment) {
             string json = new SyncMessage(1, "127.0.0.1", 8291, type, "x").ToJsonString();
             Assert.Contains(expectedFragment, json);

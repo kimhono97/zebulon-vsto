@@ -22,6 +22,8 @@
     <Compile Include="..\..\ZebulonVSTO\Sync\SyncDefaults.cs" Link="UnderTest\SyncDefaults.cs" />
     <Compile Include="..\..\ZebulonVSTO\Sync\CommandParser.cs" Link="UnderTest\CommandParser.cs" />
     <Compile Include="..\..\ZebulonVSTO\Sync\Message.cs" Link="UnderTest\Message.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Sync\DiscoveryProtocol.cs" Link="UnderTest\DiscoveryProtocol.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Sync\InputValidation.cs" Link="UnderTest\InputValidation.cs" />
   </ItemGroup>
 
   <ItemGroup>

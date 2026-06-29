@@ -8,7 +8,7 @@ using Microsoft.Office.Interop.PowerPoint;
 using ZebulonVSTO.Sync;
 
 namespace ZebulonVSTO {
-    public partial class ThisAddIn : ISyncLogger, ISlideController {
+    public partial class ThisAddIn : ISyncLogger, ISlideController, IStatusObserver {
         // Gates whether the console may send custom (non-SENDER) commands.
         // Tied to the build configuration: on in Debug, OFF in Release (the
         // shipped/production build) since the DEBUG constant is only defined
@@ -20,7 +20,9 @@ namespace ZebulonVSTO {
 #endif
 
         private SyncManager _syncManager;
+        private DiscoveryResponder _discoveryResponder;
         private SyncConsole _syncConsole;
+        private MainRibbon _mainRibbon;
         private Dispatcher _dispatcher;
 
         private int _slideShowWindowIndex = -1;
@@ -46,6 +48,13 @@ namespace ZebulonVSTO {
         public void HideSyncConsole() {
             _syncConsole?.CloseWindow();
         }
+        public void ShowSetupWizard() {
+            // Modal, owned by the PowerPoint main window so it stays on top and
+            // blocks ribbon re-entry while the user configures a session.
+            SetupWizard wizard = new SetupWizard();
+            new System.Windows.Interop.WindowInteropHelper(wizard).Owner = (IntPtr)Application.HWND;
+            wizard.ShowDialog();
+        }
 
         #region ISyncLogger
 
@@ -54,6 +63,16 @@ namespace ZebulonVSTO {
         }
         public void LogError(string message, Exception error) {
             _syncConsole?.AppendLogLine("<!> ERROR : " + message + "\n" + error);
+        }
+
+        #endregion
+
+        #region IStatusObserver
+
+        public void OnPeerChanged() {
+            // Raised on the sync receive thread; marshal the ribbon refresh onto
+            // the UI thread (the ribbon API is UI-thread affine).
+            _dispatcher?.BeginInvoke(new Action(() => _mainRibbon?.RefreshPeerStatus()));
         }
 
         #endregion
@@ -176,9 +195,14 @@ namespace ZebulonVSTO {
 
         private void ThisAddIn_Startup(object sender, EventArgs e) {
             _syncManager = SyncManager.GetInstance();
-            _syncManager.Attach(this, this, DebugMode);
+            _syncManager.Attach(this, this, this, DebugMode);
             _syncConsole = new SyncConsole();
             _dispatcher = Dispatcher.CurrentDispatcher;
+
+            // Always-on peer-discovery responder (best-effort; failure to bind
+            // the discovery port does not block the add-in or manual setup).
+            _discoveryResponder = new DiscoveryResponder(_syncManager, this);
+            _discoveryResponder.Start();
 
             _slideShowWindowIndex = -1;
 
@@ -187,6 +211,8 @@ namespace ZebulonVSTO {
             Application.SlideSelectionChanged += OnSelectSlide;
         }
         private void ThisAddIn_Shutdown(object sender, EventArgs e) {
+            _discoveryResponder?.Stop();
+            _discoveryResponder = null;
             if (_syncManager != null && _syncManager.IsRunning()) {
                 _syncManager.StopSync();
             }
@@ -195,7 +221,8 @@ namespace ZebulonVSTO {
         }
 
         protected override Microsoft.Office.Core.IRibbonExtensibility CreateRibbonExtensibilityObject() {
-            return new MainRibbon();
+            _mainRibbon = new MainRibbon();
+            return _mainRibbon;
         }
 
         #region VSTO generated code
