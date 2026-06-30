@@ -223,6 +223,18 @@
     <Compile Include="Slides\ProviderClient.cs" />
     <Compile Include="Slides\SlideGenContracts.cs" />
     <Compile Include="Slides\DisplayNames.cs" />
+    <Compile Include="Slides\BibleCatalog.cs" />
+    <Compile Include="Slides\LanguageCatalog.cs" />
+    <Compile Include="Slides\RubyText.cs" />
+    <Compile Include="Slides\WordModels.cs" />
+    <Compile Include="Slides\SectionUtils.cs" />
+    <Compile Include="Slides\VerseSelection.cs" />
+    <Compile Include="Slides\BibleClient.cs" />
+    <Compile Include="Slides\WordAssembler.cs" />
+    <Compile Include="Slides\WordPlanner.cs" />
+    <Compile Include="Slides\WordSelectWindow.xaml.cs">
+      <DependentUpon>WordSelectWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Slides\SlideGenWindow.xaml.cs">
       <DependentUpon>SlideGenWindow.xaml</DependentUpon>
     </Compile>
@@ -247,6 +259,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Slides\LyricPreviewWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Slides\WordSelectWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

@@ -253,9 +253,12 @@ namespace ZebulonVSTO {
 
             // CN-box vertical-centering tweak (faithful to the Exporter): when the
             // EN box (1) holds a single line and the KR box (0) sits above EN,
-            // nudge the CN box (2) to the midpoint and reset its height.
+            // nudge the CN box (2) to the midpoint and reset its height. This is
+            // Praise-only — the Exporter does it solely in PPTXFile_Praise.addItem;
+            // Word's box 2 is its 2nd-language placeholder and must NOT be moved
+            // (gated by sel.CenterCnBox, which the wizard sets only for Praise).
             string en;
-            if (sigs.Count >= 3 && boxShapes[2] != null &&
+            if (sel.CenterCnBox && sigs.Count >= 3 && boxShapes[2] != null &&
                 boxText.TryGetValue(1, out en) && en != null && en.IndexOf('\n') < 0 &&
                 sigs[0].Top < sigs[1].Top) {
                 try {

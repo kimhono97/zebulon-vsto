@@ -61,6 +61,16 @@ namespace ZebulonVSTO.Slides {
         public int BindLayoutIndex { get; set; }
         public List<BoxSignature> BoxSignatures { get; set; }
         public int EmptyLayoutIndex { get; set; }
+
+        /// <summary>
+        /// Apply the Praise-only CN-box vertical-centering nudge in the Interop
+        /// layer (<c>ThisAddIn.ApplyBoxText</c>). The Exporter performs this tweak
+        /// solely in <c>PPTXFile_Praise.addItem</c> (pptx_exporter.py); the Word
+        /// path (<c>PPTXFile_Word.addItem</c>) does NOT — box 2 there is the 2nd
+        /// language placeholder and must stay put. The wizard sets this true only
+        /// for the Praise template.
+        /// </summary>
+        public bool CenterCnBox { get; set; }
     }
 
     /// <summary>

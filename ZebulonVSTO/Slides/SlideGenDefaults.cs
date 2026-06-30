@@ -10,7 +10,7 @@ namespace ZebulonVSTO.Slides {
         // this also hosts the Bible API used in Phase B. Leave empty to skip
         // /api/proj resolution and use ProviderBaseUrl directly.
         // TODO(confirm): set the canonical Zebulon Web deployment URL.
-        public const string WebBaseUrl = "";
+        public const string WebBaseUrl = "https://jym-workbox.vercel.app";
 
         // Fallback Provider base URL (used when /api/proj resolution is skipped
         // or fails). TODO(confirm): verify this is the current deployment.

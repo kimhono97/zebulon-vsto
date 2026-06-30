@@ -33,10 +33,10 @@
                         <TextBlock x:Name="PraiseStatus" Margin="0,6,0,0" Foreground="#FF555555"/>
                     </StackPanel>
                 </Button>
-                <Button x:Name="WordCard" Height="82" IsEnabled="False" HorizontalContentAlignment="Left">
+                <Button x:Name="WordCard" Height="82" IsEnabled="False" Click="WordCard_Click" HorizontalContentAlignment="Left">
                     <StackPanel Margin="10,0,0,0">
                         <TextBlock Text="📖  말씀 (Word)" FontSize="15" FontWeight="Bold"/>
-                        <TextBlock Text="준비 중 (Phase B)" Margin="0,6,0,0" Foreground="#FF999999"/>
+                        <TextBlock x:Name="WordStatus" Margin="0,6,0,0" Foreground="#FF555555"/>
                     </StackPanel>
                 </Button>
                 <TextBlock x:Name="TypeError" Foreground="#FFCC0000" TextWrapping="Wrap" Visibility="Collapsed" Margin="0,12,0,0"/>
@@ -53,14 +53,14 @@
             <!-- Step 2: layout select -->
             <StackPanel x:Name="LayoutPanel" Visibility="Collapsed">
                 <TextBlock Text="레이아웃 선택" FontSize="16" FontWeight="Bold" Margin="0,4,0,12"/>
-                <TextBlock Text="조건(마커 $1·$2·$3)을 충족하는 bind 레이아웃:" Margin="0,0,0,6" Foreground="#FF555555"/>
+                <TextBlock x:Name="LayoutHint" Margin="0,0,0,6" Foreground="#FF555555"/>
                 <ListBox x:Name="LayoutListBox" Height="240" SelectionChanged="LayoutListBox_SelectionChanged"/>
                 <TextBlock x:Name="EmptyLayoutText" Margin="0,8,0,0" Foreground="#FF555555"/>
                 <TextBlock x:Name="LayoutError" Foreground="#FFCC0000" TextWrapping="Wrap" Visibility="Collapsed" Margin="0,8,0,0"/>
             </StackPanel>
 
-            <!-- Step 3: lyric select -->
-            <Grid x:Name="DataPanel" Visibility="Collapsed">
+            <!-- Step 3 (Praise): lyric select -->
+            <Grid x:Name="DataPanelPraise" Visibility="Collapsed">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -100,6 +100,25 @@
                     </DockPanel>
                 </Grid>
                 <TextBlock Grid.Row="3" x:Name="DataError" Foreground="#FFCC0000" TextWrapping="Wrap" Visibility="Collapsed" Margin="0,8,0,0"/>
+            </Grid>
+
+            <!-- Step 3 (Word): passage select -->
+            <Grid x:Name="DataPanelWord" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Text="구절 선택 (위에서부터 삽입)" FontSize="16" FontWeight="Bold" Margin="0,4,0,12"/>
+                <ListBox Grid.Row="1" x:Name="WordItemList" DisplayMemberPath="HeadText"/>
+                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
+                    <Button Content="구절 추가…" Padding="8,3" Click="AddPassage_Click"/>
+                    <Button Content="제거" Margin="8,0,0,0" Padding="8,3" Click="RemovePassage_Click"/>
+                    <Button Content="▲" Margin="8,0,0,0" Padding="8,3" Click="PassageUp_Click"/>
+                    <Button Content="▼" Margin="8,0,0,0" Padding="8,3" Click="PassageDown_Click"/>
+                </StackPanel>
+                <TextBlock Grid.Row="3" x:Name="WordDataError" Foreground="#FFCC0000" TextWrapping="Wrap" Visibility="Collapsed" Margin="0,8,0,0"/>
             </Grid>
 
             <!-- Step 4: insert position -->

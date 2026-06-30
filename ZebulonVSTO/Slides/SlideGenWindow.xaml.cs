@@ -21,6 +21,7 @@ namespace ZebulonVSTO.Slides {
     /// </summary>
     public partial class SlideGenWindow {
         private enum Step { Type, Layout, Data, Position }
+        private enum TemplateKind { Praise, Word }
 
         private sealed class LayoutItem {
             public LayoutMatch Match { get; private set; }
@@ -36,7 +37,9 @@ namespace ZebulonVSTO.Slides {
 
         private List<LayoutDescriptor> _layouts = new List<LayoutDescriptor>();
         private LayoutMatchResult _praiseMatch = new LayoutMatchResult();
+        private LayoutMatchResult _wordMatch = new LayoutMatchResult();
 
+        private TemplateKind _kind = TemplateKind.Praise;
         private Step _step = Step.Type;
         private LayoutMatch _selectedBind;
         private int _emptyLayoutIndex = -1;
@@ -47,6 +50,7 @@ namespace ZebulonVSTO.Slides {
         private readonly ObservableCollection<LyricEntry> _selected = new ObservableCollection<LyricEntry>();
         private readonly HashSet<string> _selectedPaths = new HashSet<string>();
         private readonly Dictionary<string, Lyric> _lyricCache = new Dictionary<string, Lyric>();
+        private readonly ObservableCollection<WordItem> _wordItems = new ObservableCollection<WordItem>();
 
         private bool _lyricsLoaded;
         private bool _templatesLoaded;
@@ -57,6 +61,7 @@ namespace ZebulonVSTO.Slides {
             _builder = Globals.ThisAddIn;
             AvailableListBox.ItemsSource = _available;
             SelectedListBox.ItemsSource = _selected;
+            WordItemList.ItemsSource = _wordItems;
             Loaded += OnLoaded;
         }
 
@@ -83,6 +88,21 @@ namespace ZebulonVSTO.Slides {
                 PraiseStatus.Text = "이 deck에 적합한 Praise 레이아웃이 없습니다.";
                 PraiseCard.IsEnabled = false;
             }
+
+            _wordMatch = LayoutMatching.Match(_layouts, SlideGenDefaults.WordBoxCount);
+            if (_wordMatch.IsAvailable) {
+                WordStatus.Text = "사용 가능 — bind 레이아웃 " + _wordMatch.BindCandidates.Count + "개";
+                WordCard.IsEnabled = true;
+            } else if (string.IsNullOrEmpty(_targetDeck) && !_builder.HasActivePresentation()) {
+                WordStatus.Text = "열린 프레젠테이션이 없습니다.";
+                WordCard.IsEnabled = false;
+            } else if (_wordMatch.BindCandidates.Count > 0 && !_wordMatch.HasEmpty) {
+                WordStatus.Text = "구분용 빈(empty) 레이아웃이 없어 사용 불가.";
+                WordCard.IsEnabled = false;
+            } else {
+                WordStatus.Text = "이 deck에 적합한 Word 레이아웃이 없습니다.";
+                WordCard.IsEnabled = false;
+            }
             ShowStep(Step.Type);
         }
 
@@ -93,7 +113,8 @@ namespace ZebulonVSTO.Slides {
             ClearErrors();
             TypePanel.Visibility = Vis(step == Step.Type);
             LayoutPanel.Visibility = Vis(step == Step.Layout);
-            DataPanel.Visibility = Vis(step == Step.Data);
+            DataPanelPraise.Visibility = Vis(step == Step.Data && _kind == TemplateKind.Praise);
+            DataPanelWord.Visibility = Vis(step == Step.Data && _kind == TemplateKind.Word);
             PositionPanel.Visibility = Vis(step == Step.Position);
 
             BackButton.Visibility = Vis(step != Step.Type);
@@ -105,18 +126,31 @@ namespace ZebulonVSTO.Slides {
             if (_busy) {
                 return; // ignore navigation while a download/open is in flight
             }
+            _kind = TemplateKind.Praise;
+            EnterLayoutStep();
+        }
+
+        private void WordCard_Click(object sender, RoutedEventArgs e) {
+            if (_busy) {
+                return;
+            }
+            _kind = TemplateKind.Word;
             EnterLayoutStep();
         }
 
         private void EnterLayoutStep() {
+            LayoutMatchResult match = _kind == TemplateKind.Word ? _wordMatch : _praiseMatch;
+            LayoutHint.Text = _kind == TemplateKind.Word
+                ? "조건(마커 $1·$2·$3·$4)을 충족하는 bind 레이아웃:"
+                : "조건(마커 $1·$2·$3)을 충족하는 bind 레이아웃:";
             LayoutListBox.Items.Clear();
-            foreach (LayoutMatch m in _praiseMatch.BindCandidates) {
+            foreach (LayoutMatch m in match.BindCandidates) {
                 LayoutListBox.Items.Add(new LayoutItem(m));
             }
             if (LayoutListBox.Items.Count > 0) {
                 LayoutListBox.SelectedIndex = 0;
             }
-            _emptyLayoutIndex = _praiseMatch.EmptyLayoutIndex;
+            _emptyLayoutIndex = match.EmptyLayoutIndex;
             EmptyLayoutText.Text = "구분(empty) 레이아웃: #" + _emptyLayoutIndex;
             ShowStep(Step.Layout);
         }
@@ -154,7 +188,12 @@ namespace ZebulonVSTO.Slides {
                     await EnterDataStepAsync();
                     break;
                 case Step.Data:
-                    if (_selected.Count == 0) {
+                    if (_kind == TemplateKind.Word) {
+                        if (_wordItems.Count == 0) {
+                            ShowError(WordDataError, "구절을 1개 이상 추가하세요.");
+                            return;
+                        }
+                    } else if (_selected.Count == 0) {
                         ShowError(DataError, "가사를 1개 이상 선택하세요.");
                         return;
                     }
@@ -256,12 +295,10 @@ namespace ZebulonVSTO.Slides {
                     string opened = _builder.OpenPresentation(path);
                     if (!string.IsNullOrEmpty(opened)) {
                         _targetDeck = opened; // bind the wizard to this exact deck
-                        Initialize();         // re-scan the opened deck
-                        if (_praiseMatch.IsAvailable) {
-                            EnterLayoutStep();
-                        } else {
-                            TemplateStatus.Text = "열었지만 적합한 Praise 레이아웃이 없습니다.";
-                        }
+                        Initialize();         // re-scan; re-enables the Praise/Word cards
+                        TemplateStatus.Text = (_praiseMatch.IsAvailable || _wordMatch.IsAvailable)
+                            ? "열었습니다. 위에서 타입을 선택하세요."
+                            : "열었지만 적합한 레이아웃이 없습니다.";
                     } else {
                         TemplateStatus.Text = "열기에 실패했습니다.";
                     }
@@ -279,6 +316,9 @@ namespace ZebulonVSTO.Slides {
 
         private async Task EnterDataStepAsync() {
             ShowStep(Step.Data);
+            if (_kind == TemplateKind.Word) {
+                return; // Word passages are added via the WordSelectWindow dialog
+            }
             if (_lyricsLoaded) {
                 return;
             }
@@ -408,6 +448,46 @@ namespace ZebulonVSTO.Slides {
             }
         }
 
+        private void AddPassage_Click(object sender, RoutedEventArgs e) {
+            if (_busy) {
+                return;
+            }
+            ClearErrors();
+            WordSelectWindow win = new WordSelectWindow { Owner = this };
+            bool? ok = win.ShowDialog();
+            if (ok == true && win.Result != null) {
+                _wordItems.Add(win.Result);
+            }
+        }
+
+        private void RemovePassage_Click(object sender, RoutedEventArgs e) {
+            WordItem item = WordItemList.SelectedItem as WordItem;
+            if (item != null) {
+                _wordItems.Remove(item);
+            }
+        }
+
+        private void PassageUp_Click(object sender, RoutedEventArgs e) {
+            MovePassage(-1);
+        }
+
+        private void PassageDown_Click(object sender, RoutedEventArgs e) {
+            MovePassage(1);
+        }
+
+        private void MovePassage(int direction) {
+            int i = WordItemList.SelectedIndex;
+            if (i < 0) {
+                return;
+            }
+            int j = i + direction;
+            if (j < 0 || j >= _wordItems.Count) {
+                return;
+            }
+            _wordItems.Move(i, j);
+            WordItemList.SelectedIndex = j;
+        }
+
         #endregion
 
         #region Generate
@@ -421,24 +501,37 @@ namespace ZebulonVSTO.Slides {
                                : PosEnd.IsChecked == true ? InsertPosition.End
                                : InsertPosition.AfterCurrent;
             SetBusy(true);
-            GenStatus.Text = "가사 불러오는 중…";
+            GenStatus.Text = "준비 중…";
             try {
-                List<Lyric> lyrics = new List<Lyric>();
-                foreach (LyricEntry entry in _selected) {
-                    Lyric lyric = await GetLyricCachedAsync(entry.Path);
-                    if (lyric != null) {
-                        lyrics.Add(lyric);
+                List<SlidePlanItem> plan;
+                if (_kind == TemplateKind.Word) {
+                    plan = WordPlanner.BuildPlan(_wordItems.ToList());
+                } else {
+                    GenStatus.Text = "가사 불러오는 중…";
+                    List<Lyric> lyrics = new List<Lyric>();
+                    foreach (LyricEntry entry in _selected) {
+                        Lyric lyric = await GetLyricCachedAsync(entry.Path);
+                        if (lyric != null) {
+                            lyrics.Add(lyric);
+                        }
                     }
+                    if (lyrics.Count == 0) {
+                        GenStatus.Text = "가사를 불러오지 못했습니다.";
+                        return;
+                    }
+                    plan = PraisePlanner.BuildPlan(lyrics);
                 }
-                if (lyrics.Count == 0) {
-                    GenStatus.Text = "가사를 불러오지 못했습니다.";
+                if (plan.Count == 0) {
+                    GenStatus.Text = "생성할 슬라이드가 없습니다.";
                     return;
                 }
-                List<SlidePlanItem> plan = PraisePlanner.BuildPlan(lyrics);
                 LayoutSelection sel = new LayoutSelection {
                     BindLayoutIndex = _selectedBind.LayoutIndex,
                     BoxSignatures = _selectedBind.BoxSignatures,
-                    EmptyLayoutIndex = _emptyLayoutIndex
+                    EmptyLayoutIndex = _emptyLayoutIndex,
+                    // The CN-box centering nudge is Praise-only (faithful to the
+                    // Exporter); Word must not move its 2nd-language box.
+                    CenterCnBox = _kind == TemplateKind.Praise
                 };
                 GenStatus.Text = "슬라이드 삽입 중…";
                 int inserted = _builder.ExecutePlan(_targetDeck, sel, plan, pos);
@@ -491,6 +584,7 @@ namespace ZebulonVSTO.Slides {
             TypeError.Visibility = Visibility.Collapsed;
             LayoutError.Visibility = Visibility.Collapsed;
             DataError.Visibility = Visibility.Collapsed;
+            WordDataError.Visibility = Visibility.Collapsed;
         }
 
         #endregion

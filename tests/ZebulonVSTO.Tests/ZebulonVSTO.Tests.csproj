@@ -32,6 +32,13 @@
     <Compile Include="..\..\ZebulonVSTO\Slides\LayoutMatching.cs" Link="UnderTest\LayoutMatching.cs" />
     <Compile Include="..\..\ZebulonVSTO\Slides\PraisePlanner.cs" Link="UnderTest\PraisePlanner.cs" />
     <Compile Include="..\..\ZebulonVSTO\Slides\DisplayNames.cs" Link="UnderTest\DisplayNames.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\BibleCatalog.cs" Link="UnderTest\BibleCatalog.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\RubyText.cs" Link="UnderTest\RubyText.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\WordModels.cs" Link="UnderTest\WordModels.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\SectionUtils.cs" Link="UnderTest\SectionUtils.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\VerseSelection.cs" Link="UnderTest\VerseSelection.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\WordAssembler.cs" Link="UnderTest\WordAssembler.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\WordPlanner.cs" Link="UnderTest\WordPlanner.cs" />
   </ItemGroup>
 
   <ItemGroup>
