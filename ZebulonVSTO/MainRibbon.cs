@@ -77,6 +77,9 @@ namespace ZebulonVSTO {
                 case "BtnAbout":
                     Globals.ThisAddIn.ShowInfoDlg();
                     break;
+                case "BtnGenSlides":
+                    Globals.ThisAddIn.ShowSlideGenWindow();
+                    break;
                 case "BtnConsole":
                     Globals.ThisAddIn.ShowSyncConsole();
                     break;

@@ -24,6 +24,21 @@
     <Compile Include="..\..\ZebulonVSTO\Sync\Message.cs" Link="UnderTest\Message.cs" />
     <Compile Include="..\..\ZebulonVSTO\Sync\DiscoveryProtocol.cs" Link="UnderTest\DiscoveryProtocol.cs" />
     <Compile Include="..\..\ZebulonVSTO\Sync\InputValidation.cs" Link="UnderTest\InputValidation.cs" />
+    <!-- Slide-generation pure layer (COM-free) -->
+    <Compile Include="..\..\ZebulonVSTO\Slides\SlideGenDefaults.cs" Link="UnderTest\SlideGenDefaults.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\SlideGenModels.cs" Link="UnderTest\SlideGenModels.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\LyricModels.cs" Link="UnderTest\LyricModels.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\TextTransforms.cs" Link="UnderTest\TextTransforms.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\LayoutMatching.cs" Link="UnderTest\LayoutMatching.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\PraisePlanner.cs" Link="UnderTest\PraisePlanner.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\DisplayNames.cs" Link="UnderTest\DisplayNames.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\BibleCatalog.cs" Link="UnderTest\BibleCatalog.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\RubyText.cs" Link="UnderTest\RubyText.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\WordModels.cs" Link="UnderTest\WordModels.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\SectionUtils.cs" Link="UnderTest\SectionUtils.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\VerseSelection.cs" Link="UnderTest\VerseSelection.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\WordAssembler.cs" Link="UnderTest\WordAssembler.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\WordPlanner.cs" Link="UnderTest\WordPlanner.cs" />
   </ItemGroup>
 
   <ItemGroup>
