@@ -1,6 +1,11 @@
 # Agent Instructions — ZebulonVSTO
 
-A **VSTO (Visual Studio Tools for Office) PowerPoint COM add-in** written in C# on **.NET Framework 4.7.2**. Its purpose is **UDP-based slide synchronization**: one PowerPoint instance runs as a *SENDER* and broadcasts slide-navigation commands; one or more *RECEIVER* instances execute them. A WPF console window provides live traffic logging and manual command entry.
+A **VSTO (Visual Studio Tools for Office) PowerPoint COM add-in** written in C# on **.NET Framework 4.7.2**. It has two features:
+
+1. **UDP-based slide synchronization**: one PowerPoint instance runs as a *SENDER* and broadcasts slide-navigation commands; one or more *RECEIVER* instances execute them. A WPF console window provides live traffic logging and manual command entry.
+2. **Slide generation (Zebulon direct insert)**: a WPF wizard that inserts **Praise (찬양)** and **Word/scripture (말씀)** slides straight into the active deck — lyrics from the Zebulon **Provider**, scripture from the Zebulon **Web Bible API** — by filling box-marker (`$1`..`$N`) bind layouts. It is an in-app port of the external `zebulon-exporter`.
+
+Both features keep all PowerPoint/COM interop isolated behind host-implemented interfaces (`ISlideController`/`ISlideBuilder`); the rest is COM-free and unit-tested.
 
 ## Quick Reference
 
@@ -79,7 +84,8 @@ The pure, COM-free logic (`CommandParser`, `SyncMessage` serialization, `Discove
 ```bash
 dotnet test tests/ZebulonVSTO.Tests
 ```
-- The test project is **SDK-style (`net472`) and deliberately NOT in `ZebulonVSTO.sln`**, so it builds with the modern `dotnet` toolchain independently of the VSTO/MSBuild build. It **link-compiles** the source files under test (`Sync/SyncDefaults.cs`, `Sync/CommandParser.cs`, `Sync/Message.cs`, `Sync/DiscoveryProtocol.cs`, `Sync/InputValidation.cs`) rather than referencing the add-in DLL — so `dotnet test` never touches the VSTO toolchain.
+- The test project is **SDK-style (`net472`) and deliberately NOT in `ZebulonVSTO.sln`**, so it builds with the modern `dotnet` toolchain independently of the VSTO/MSBuild build. It **link-compiles** the COM-free source files under test rather than referencing the add-in DLL — so `dotnet test` never touches the VSTO toolchain. Linked sets: the sync pure layer (`Sync/SyncDefaults.cs`, `CommandParser.cs`, `Message.cs`, `DiscoveryProtocol.cs`, `InputValidation.cs`) and the slide-gen pure layer (`Slides/SlideGenDefaults.cs`, `SlideGenModels.cs`, `LayoutMatching.cs`, `PraisePlanner.cs`, `TextTransforms.cs`, `LyricModels.cs`, `DisplayNames.cs`, `BibleCatalog.cs`, `RubyText.cs`, `WordModels.cs`, `SectionUtils.cs`, `VerseSelection.cs`, `WordAssembler.cs`, `WordPlanner.cs`).
+- **Adding a new pure (COM-free) file under test → register it in BOTH csproj**: the add-in's `<Compile Include="Slides\Foo.cs" />` *and* the test project's `<Compile Include="..\..\ZebulonVSTO\Slides\Foo.cs" Link="UnderTest\Foo.cs" />`. Miss the second and the file silently isn't tested; miss the first and the add-in won't build. Keep pure logic free of `Microsoft.Office.Interop`/WPF so it stays link-compilable.
 - Anything requiring PowerPoint/COM (`SyncManager` networking, `ThisAddIn` slide actions) is **not** unit-tested — verify those via F5 as above.
 - `Serialized_ContainsFrozenWireFieldName` guards the on-the-wire JSON field names; if it fails, peer-to-peer sync is broken — fix the code, not the test.
 
@@ -89,6 +95,7 @@ dotnet test tests/ZebulonVSTO.Tests
 ZebulonVSTO.sln
 ZebulonVSTO/
   ThisAddIn.cs              ← entry point: lifecycle + PowerPoint event handlers; implements ISyncLogger + ISlideController
+  ThisAddIn.Slides.cs       ← partial of ThisAddIn: the ISlideBuilder (slide-gen Interop) half — UI-thread-marshalled
   ThisAddIn.Designer.cs     ← VSTO-generated plumbing (Globals, ribbon collection) — DO NOT hand-edit
   ThisAddIn.Designer.xml    ← VSTO host blueprint (generates ThisAddIn.Designer.cs) — DO NOT hand-edit
   MainRibbon.cs             ← ribbon callbacks ([ComVisible] IRibbonExtensibility)
@@ -105,6 +112,21 @@ ZebulonVSTO/
     SyncDefaults.cs         ← shared default IP/port constants incl. DiscoveryPort=8290 (COM-free)
     SetupWizard.xaml(.cs)   ← WPF setup wizard (mode → manual/auto-discovery → start)
     SyncConsole.xaml(.cs)   ← WPF debug console (log + custom command input)
+  Slides/                   ← slide-generation feature (Zebulon direct insert) — pure layer is COM-free + unit-tested
+    SlideGenContracts.cs    ← ISlideBuilder seam (host-implemented by ThisAddIn.Slides.cs)
+    SlideGenDefaults.cs     ← WebBaseUrl/ProviderBaseUrl, box counts, "$N " marker convention (COM-free)
+    SlideGenModels.cs       ← COM-free DTOs: LayoutDescriptor/BoxSignature/LayoutMatch/LayoutSelection/SlidePlanItem
+    LayoutMatching.cs       ← pure: scan layouts for $1..$N bind candidates + the empty/separator layout
+    SlideGenWindow.xaml(.cs)← WPF wizard (type → layout → data → position → generate); template download
+    ProviderClient.cs       ← HTTP client for the Zebulon Provider (lyric list/fetch, template list/download)
+    LyricModels.cs          ← Praise lyric DTOs; TextTransforms.cs ← Praise box text rules; PraisePlanner.cs ← Praise plan
+    BibleClient.cs          ← HTTP client for {WebBaseUrl}/api/bible → BibleData (Word)
+    BibleCatalog.cs / LanguageCatalog.cs ← 66-book / 18-version / language metadata (COM-free)
+    WordModels.cs / WordAssembler.cs / WordPlanner.cs ← Word passage assembly + slide plan (ports PPTXFile_Word.addItem)
+    WordSelectWindow.xaml(.cs)← per-passage dialog: language/version/ruby slots + book/chapter + tap-to-select verses
+    VerseSelection.cs       ← pure tap-to-range state machine (ports the web SlideEditorWord verse picker)
+    SectionUtils.cs         ← pure verse-range coalesce/format; RubyText.cs ← pure ruby (furigana) text handling
+    DisplayNames.cs         ← pure path→display-name helpers; LyricPreviewWindow.xaml(.cs) ← lyric preview dialog
   Properties/               ← AssemblyInfo, (empty) Settings & Resources scaffolding
   app.config                ← empty configuration (no binding redirects; see Dependencies)
   ZebulonVSTO_TemporaryKey.pfx ← manifest signing key (intentionally tracked — see Deployment)
@@ -121,6 +143,18 @@ tests/
 - **Setup wizard** (`Sync/SetupWizard.xaml`) is a modal WPF window (owned by the PowerPoint HWND) launched from `BtnSync`. Flow is **2-screen asymmetric**: mode select → (RECEIVER: pick a port) or (SENDER: a `자동/수동` toggle — auto-discovery results list with a broadcast-to-all option + explicit port, or manual IP/port entry). On finish it writes settings onto `SyncManager` and calls `StartSync`; on a start failure it stays open. A `SyncManager.RemoteLabel` (display-only, **not** on the wire) carries a discovered peer's host name for the ribbon.
 - **Discovery** (peer auto-detect) is **additive** to the proven sync path. An always-on `DiscoveryResponder` binds **8290** (`SO_REUSEADDR`) from startup and answers each `DISCOVER` with an `ANNOUNCE` (its sync IP/port + role) unicast to the datagram source; `DiscoveryScanner` broadcasts `DISCOVER` ×3 and collects replies for the wizard. Payloads are the pure `ZSYNC1;key=value` format (`DiscoveryProtocol.cs`); `MessageType` gained `DISCOVER=3`/`ANNOUNCE=4` (appended — never reorder). **Auto-discovery only works new-build-to-new-build on the same subnet** (old peers run no responder and use a different port); **manual entry is the universal fallback**. Limited broadcast (`255.255.255.255`) can be blocked by AP isolation/firewalls — the wizard falls back to manual on 0 results.
 - **`DebugMode`** (`ThisAddIn.cs`) gates whether the console may send custom (non-SENDER) commands; it is passed to `SyncManager.Attach`. It is **build-gated via `#if DEBUG`** — `true` in Debug, **`false` in Release** (the shipped build) — so production cannot inject console commands.
+
+### How the slide-generation feature works
+The slide-gen feature is **additive** to sync and follows the same COM-isolation discipline. It inserts slides **directly into the active deck** (no file export — that is what it ports from the external Exporter).
+
+- **Seam**: `ISlideBuilder` (`Slides/SlideGenContracts.cs`) is the only contract that touches PowerPoint; it is implemented by the **`ThisAddIn.Slides.cs`** partial, the feature's *only* Interop code. Everything under `Slides/` except the two windows and `ThisAddIn.Slides.cs` is **COM-free and unit-tested**. Every Interop call is marshalled to the add-in UI thread via `_dispatcher` (same rule as `ISlideController` — never call Interop off the UI thread).
+- **Entry / flow**: a ribbon button opens `SlideGenWindow` (modal, owned by the PowerPoint HWND, mirrors `SetupWizard`). Steps: pick **type** (Praise / Word) → pick a **bind layout** → pick **data** → pick **insert position** → generate. The type step can also **download a template** from the Provider, save it (user-chosen path), open it, and bind the wizard to that exact deck — `ISlideBuilder.OpenPresentation` returns the deck's `FullName`, and `ExecutePlan` targets **by `FullName`**, not "whatever is active" (a download-opened deck may not be active under the modal).
+- **Layout model (box markers)**: the target deck must carry template layouts whose placeholders' text starts with **box markers `"$1 "`..`"$N "`** (`SlideGenDefaults.BoxMarker`), plus an **empty** (placeholder-free) layout used as a separator — the same convention the Exporter scans for. `LayoutMatching` (pure) reads COM-free `LayoutDescriptor`s and returns bind candidates — each box captured as a `BoxSignature` (placeholder **height+top geometry**) — and the empty layout. **Praise = 3 boxes `[KR, EN, CN]`; Word = 4 boxes `[book, KR, EN, CN]`** (`SlideGenDefaults.PraiseBoxCount`/`WordBoxCount`).
+- **Plan → execute**: a pure planner builds an ordered `List<SlidePlanItem>` (each = a `LayoutKind` + per-box text + optional speaker note). `ThisAddIn.ExecutePlan` adds the slides and, for bind slides, writes box text by **resolving each box to its placeholder by geometry** (`FindPlaceholder`, tolerant float compare — Interop reports points as floats). Box→placeholder mapping and any geometry tweak live in the **Interop layer**, never the pure planners.
+- **Praise**: lyrics come from the Zebulon **Provider** (`ProviderClient` → `Lyric`/`LyricModels`). `PraisePlanner` ports `PPTXFile_Praise.addItem` 1:1: per item → empty separator, a title slide, one bind slide per page (KR/EN/CN via `TextTransforms`), trailing separator. A **Praise-only** CN-box vertical-centering nudge runs in `ApplyBoxText` — see the caution under *Conventions*.
+- **Word (scripture)**: text comes from the Zebulon **Web Bible API** (`BibleClient` → `GET {WebBaseUrl}/api/bible?v=&b=&c=` → `BibleData`). `WordSelectWindow` builds one passage at a time: up to 3 **language/version/ruby** slots (`LanguageCatalog`/`BibleCatalog` — 18 versions, 66 books), a book/chapter picker, and a **tap-to-select verse picker** — tap a start verse, then a later verse to extend the range, then commit; multiple disjoint ranges are kept and merged via `SectionUtils.Coalesce`. The picker's transition logic is the pure `VerseSelection`. `RubyText` ports the web ruby handling (base / furigana / both). `WordAssembler` slices chapter verses by range into a `WordItem`; `WordPlanner` ports `PPTXFile_Word.addItem` 1:1 (box 0 = headText, boxes 1/2/3 = `"{verse}. {line}"`, one bind slide per verse line, no title/notes).
+- **Reference sources**: the feature is a **faithful 1:1 port** of two external repos — the **Exporter** `zebulon-exporter/py/pptx_exporter.py` (PPTX plan + placeholder geometry) and **Zebulon Web** `jym-workbox/src/zebulon/...` (Word selection UI/data, ruby, coalesce). Keep ports 1:1; when behavior must differ, **document the deliberate divergence in an XML comment** (existing examples: `WordAssembler` plain-texts every line because a placeholder can't render HTML; `SectionUtils.Coalesce` *drops* inverted ranges to match the web's `filter(r => r && r.end >= r.start)`).
+- **Config**: `SlideGenDefaults.WebBaseUrl` (`https://jym-workbox.vercel.app`) and `ProviderBaseUrl` carry `TODO(confirm)` markers — verify before shipping. Runtime (COM insert) is **F5-only**; the pure layer is unit-tested (`tests/.../SlideGenTests.cs`, `WordTests.cs`).
 
 ## Dependencies
 
@@ -147,6 +181,7 @@ Release packaging is a **local** step — run `Build-Release.ps1` (the VSTO add-
 - **Naming follows standard C# conventions** (the old Hungarian `p`/`n`/`str`/`b` prefixes were removed): `_camelCase` for private fields, `PascalCase` for methods/properties/types/constants, `camelCase` for locals & parameters. The two exceptions are intentional and **must not** be "modernized": the `SyncMessage` wire field names (`SenderIP`/`SenderPort`/`ID`/`Type`/`Data`) and the `MainRibbon` public callback names bound by `MainRibbon.xml`.
 - Comments default to **English** for new code; VSTO-generated files still contain Korean comments — leave generated files alone.
 - Build the add-in with **MSBuild/Visual Studio only**, never `dotnet build` (VSTO + COM). The `tests/` project is the opposite — it is SDK-style and built/run with **`dotnet test`** only (it is not in the add-in solution).
+- **Slide-gen box-geometry tweaks are template-kind-specific.** The shared Interop path (`ExecutePlan`/`ApplyBoxText`) serves *both* Praise and Word, so any Exporter-faithful geometry adjustment must be gated to the kind the Exporter actually applies it to. The CN-box vertical-centering nudge exists only in `PPTXFile_Praise.addItem`, so it is gated behind `LayoutSelection.CenterCnBox` (set true only for Praise). **Don't gate such tweaks on box *count*** (Praise=3 / Word=4 is a coincidence, not the intent) — a past bug had the nudge leak into Word via `sigs.Count >= 3` and shift Word's 2nd-language box. Check the source `addItem` (`zebulon-exporter/py/pptx_exporter.py`) to see which kind a behavior belongs to before sharing it.
 - Commit messages: **English** (consistent with history).
 
 ## Documentation Language Policy
@@ -170,6 +205,7 @@ Rationale: English agent-facing content improves token efficiency and agent comp
 
 ## Done (recent)
 
+- **Slide generation (Zebulon direct insert)**: a WPF wizard (`Slides/`) that inserts **Praise (찬양)** and **Word/scripture (말씀)** slides into the active deck via `$1..$N` box-marker bind layouts — an in-app 1:1 port of `zebulon-exporter` (PPTX plan/geometry) and `jym-workbox` (Word selection UI/data). COM isolated behind `ISlideBuilder` (`ThisAddIn.Slides.cs`); the pure layer is unit-tested. Word adds a Bible-API client, language/version/ruby slots, and a tap-to-select verse picker. See *How the slide-generation feature works*. Runtime is F5-only.
 - **Auto-discovery + setup wizard + ribbon redesign**: peer auto-detect (always-on `DiscoveryResponder` on 8290 / `DiscoveryScanner` / pure `ZSYNC1` `DiscoveryProtocol`), a modal WPF `SetupWizard` (manual entry kept as the universal fallback), and a minimal ribbon with a live self/peer status strip refreshed via the `IStatusObserver` seam. Full design spec: `docs/auto-discovery-spec.md`. Auto path is new-build-to-new-build on the same subnet; manual works cross-version.
 - **CI** (`.github/workflows/ci.yml`): runs `dotnet test tests/ZebulonVSTO.Tests` on `windows-latest` for pushes to main/update and PRs to main. The VSTO add-in build stays local (hosted runners lack the VSTO targets).
 - **Release packaging**: `Build-Release.ps1` + `deploy/` (see *Deployment*).
