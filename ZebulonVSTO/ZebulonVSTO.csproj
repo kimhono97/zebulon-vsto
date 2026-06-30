@@ -106,6 +106,7 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Numerics" />
+    <Reference Include="System.Net.Http" />
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xaml" />
@@ -212,11 +213,32 @@
     <EmbeddedResource Include="MainRibbon.xml" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Slide-generation feature (Zebulon direct insert) -->
+    <Compile Include="Slides\SlideGenDefaults.cs" />
+    <Compile Include="Slides\SlideGenModels.cs" />
+    <Compile Include="Slides\LyricModels.cs" />
+    <Compile Include="Slides\TextTransforms.cs" />
+    <Compile Include="Slides\LayoutMatching.cs" />
+    <Compile Include="Slides\PraisePlanner.cs" />
+    <Compile Include="Slides\ProviderClient.cs" />
+    <Compile Include="Slides\SlideGenContracts.cs" />
+    <Compile Include="Slides\SlideGenWindow.xaml.cs">
+      <DependentUpon>SlideGenWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="ThisAddIn.Slides.cs">
+      <DependentUpon>ThisAddIn.cs</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
     <Page Include="Sync\SetupWizard.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Sync\SyncConsole.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Slides\SlideGenWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

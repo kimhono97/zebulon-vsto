@@ -1,0 +1,100 @@
+<Window x:Class="ZebulonVSTO.Slides.SlideGenWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="clr-namespace:ZebulonVSTO.Slides"
+    mc:Ignorable="d"
+    FontFamily="Malgun Gothic" FontSize="13"
+    Height="580" Width="600" MinHeight="520" MinWidth="540"
+    Title="슬라이드 생성" ShowInTaskbar="False" WindowStartupLocation="CenterOwner">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0">
+            <!-- Step 1: type select -->
+            <StackPanel x:Name="TypePanel">
+                <TextBlock Text="어떤 슬라이드를 만들까요?" FontSize="16" FontWeight="Bold" Margin="0,4,0,16"/>
+                <Button x:Name="PraiseCard" Height="86" Margin="0,0,0,12" Click="PraiseCard_Click" HorizontalContentAlignment="Left">
+                    <StackPanel Margin="10,0,0,0">
+                        <TextBlock Text="🎵  찬양 (Praise)" FontSize="15" FontWeight="Bold"/>
+                        <TextBlock x:Name="PraiseStatus" Margin="0,6,0,0" Foreground="#FF555555"/>
+                    </StackPanel>
+                </Button>
+                <Button x:Name="WordCard" Height="86" IsEnabled="False" HorizontalContentAlignment="Left">
+                    <StackPanel Margin="10,0,0,0">
+                        <TextBlock Text="📖  말씀 (Word)" FontSize="15" FontWeight="Bold"/>
+                        <TextBlock Text="준비 중 (Phase B)" Margin="0,6,0,0" Foreground="#FF999999"/>
+                    </StackPanel>
+                </Button>
+                <TextBlock x:Name="TypeError" Foreground="#FFCC0000" TextWrapping="Wrap" Visibility="Collapsed" Margin="0,12,0,0"/>
+            </StackPanel>
+
+            <!-- Step 2: layout select -->
+            <StackPanel x:Name="LayoutPanel" Visibility="Collapsed">
+                <TextBlock Text="레이아웃 선택" FontSize="16" FontWeight="Bold" Margin="0,4,0,12"/>
+                <TextBlock Text="조건(마커 $1·$2·$3)을 충족하는 bind 레이아웃:" Margin="0,0,0,6" Foreground="#FF555555"/>
+                <ListBox x:Name="LayoutListBox" Height="240" SelectionChanged="LayoutListBox_SelectionChanged"/>
+                <TextBlock x:Name="EmptyLayoutText" Margin="0,8,0,0" Foreground="#FF555555"/>
+                <TextBlock x:Name="LayoutError" Foreground="#FFCC0000" TextWrapping="Wrap" Visibility="Collapsed" Margin="0,8,0,0"/>
+            </StackPanel>
+
+            <!-- Step 3: lyric select -->
+            <Grid x:Name="DataPanel" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Text="가사 선택" FontSize="16" FontWeight="Bold" Margin="0,4,0,12"/>
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
+                    <TextBlock Text="검색" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBox x:Name="FilterBox" Width="240" TextChanged="FilterBox_TextChanged"/>
+                    <TextBlock x:Name="DataStatus" Margin="12,0,0,0" VerticalAlignment="Center" Foreground="#FF777777"/>
+                </StackPanel>
+                <Grid Grid.Row="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <DockPanel Grid.Column="0">
+                        <TextBlock DockPanel.Dock="Top" Text="목록" Foreground="#FF555555" Margin="0,0,0,4"/>
+                        <ListBox x:Name="AvailableListBox" SelectionMode="Extended" MouseDoubleClick="AvailableListBox_MouseDoubleClick"/>
+                    </DockPanel>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="8,0">
+                        <Button Content="추가 ▶" Margin="0,0,0,8" Padding="6,4" Click="AddButton_Click"/>
+                        <Button Content="◀ 제거" Margin="0,0,0,8" Padding="6,4" Click="RemoveButton_Click"/>
+                        <Button Content="▲" Margin="0,0,0,8" Padding="6,4" Click="UpButton_Click"/>
+                        <Button Content="▼" Padding="6,4" Click="DownButton_Click"/>
+                    </StackPanel>
+                    <DockPanel Grid.Column="2">
+                        <TextBlock DockPanel.Dock="Top" Text="선택됨 (위에서부터 삽입)" Foreground="#FF555555" Margin="0,0,0,4"/>
+                        <ListBox x:Name="SelectedListBox"/>
+                    </DockPanel>
+                </Grid>
+                <TextBlock Grid.Row="3" x:Name="DataError" Foreground="#FFCC0000" TextWrapping="Wrap" Visibility="Collapsed" Margin="0,8,0,0"/>
+            </Grid>
+
+            <!-- Step 4: insert position -->
+            <StackPanel x:Name="PositionPanel" Visibility="Collapsed">
+                <TextBlock Text="삽입 위치" FontSize="16" FontWeight="Bold" Margin="0,4,0,12"/>
+                <RadioButton x:Name="PosAfter" GroupName="Pos" Content="현재 슬라이드 뒤" IsChecked="True" Margin="0,0,0,8"/>
+                <RadioButton x:Name="PosFront" GroupName="Pos" Content="맨 앞" Margin="0,0,0,8"/>
+                <RadioButton x:Name="PosEnd" GroupName="Pos" Content="맨 끝"/>
+                <TextBlock x:Name="GenStatus" Margin="0,16,0,0" Foreground="#FF555555" TextWrapping="Wrap"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Footer -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button x:Name="BackButton" Content="&lt; 뒤로" Width="80" Margin="0,0,8,0" Click="BackButton_Click"/>
+            <Button x:Name="CancelButton" Content="취소" Width="80" Margin="0,0,8,0" Click="CancelButton_Click"/>
+            <Button x:Name="NextButton" Content="다음 &gt;" Width="100" FontWeight="Bold" Click="NextButton_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

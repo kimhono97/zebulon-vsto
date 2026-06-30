@@ -21,6 +21,9 @@
 				  <labelControl id="LblRemote" getLabel="GetLabel" getVisible="GetVisible"/>
 			  </box>
 		  </group>
+        <group id="GroupSlides" label="슬라이드">
+          <button id="BtnGenSlides" label="슬라이드 생성" size="large" imageMso="SlideNew" onAction="OnBtnAction"/>
+        </group>
       </tab>
     </tabs>
   </ribbon>
