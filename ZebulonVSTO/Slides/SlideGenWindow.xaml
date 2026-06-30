@@ -6,8 +6,17 @@
     xmlns:local="clr-namespace:ZebulonVSTO.Slides"
     mc:Ignorable="d"
     FontFamily="Malgun Gothic" FontSize="13"
-    Height="580" Width="600" MinHeight="520" MinWidth="540"
+    Height="600" Width="620" MinHeight="540" MinWidth="560"
     Title="슬라이드 생성" ShowInTaskbar="False" WindowStartupLocation="CenterOwner">
+    <Window.Resources>
+        <!-- Two-line list row: derived title (large) + raw path (small, grey) -->
+        <DataTemplate x:Key="LyricRowTemplate">
+            <StackPanel Margin="0,2">
+                <TextBlock Text="{Binding DisplayName}" FontSize="14"/>
+                <TextBlock Text="{Binding Path}" FontSize="11" Foreground="#FF888888" TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+        </DataTemplate>
+    </Window.Resources>
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
@@ -18,19 +27,27 @@
             <!-- Step 1: type select -->
             <StackPanel x:Name="TypePanel">
                 <TextBlock Text="어떤 슬라이드를 만들까요?" FontSize="16" FontWeight="Bold" Margin="0,4,0,16"/>
-                <Button x:Name="PraiseCard" Height="86" Margin="0,0,0,12" Click="PraiseCard_Click" HorizontalContentAlignment="Left">
+                <Button x:Name="PraiseCard" Height="82" Margin="0,0,0,12" Click="PraiseCard_Click" HorizontalContentAlignment="Left">
                     <StackPanel Margin="10,0,0,0">
                         <TextBlock Text="🎵  찬양 (Praise)" FontSize="15" FontWeight="Bold"/>
                         <TextBlock x:Name="PraiseStatus" Margin="0,6,0,0" Foreground="#FF555555"/>
                     </StackPanel>
                 </Button>
-                <Button x:Name="WordCard" Height="86" IsEnabled="False" HorizontalContentAlignment="Left">
+                <Button x:Name="WordCard" Height="82" IsEnabled="False" HorizontalContentAlignment="Left">
                     <StackPanel Margin="10,0,0,0">
                         <TextBlock Text="📖  말씀 (Word)" FontSize="15" FontWeight="Bold"/>
                         <TextBlock Text="준비 중 (Phase B)" Margin="0,6,0,0" Foreground="#FF999999"/>
                     </StackPanel>
                 </Button>
                 <TextBlock x:Name="TypeError" Foreground="#FFCC0000" TextWrapping="Wrap" Visibility="Collapsed" Margin="0,12,0,0"/>
+
+                <Separator Margin="0,16,0,8"/>
+                <TextBlock Text="적합한 레이아웃이 없나요? Provider에서 템플릿을 받아 열 수 있습니다." Foreground="#FF555555" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                <StackPanel Orientation="Horizontal">
+                    <ComboBox x:Name="TemplateCombo" Width="320" DisplayMemberPath="DisplayName"/>
+                    <Button x:Name="DownloadButton" Content="다운로드 후 열기" Margin="8,0,0,0" Padding="10,2" Click="DownloadButton_Click"/>
+                </StackPanel>
+                <TextBlock x:Name="TemplateStatus" Margin="0,6,0,0" Foreground="#FF777777" TextWrapping="Wrap"/>
             </StackPanel>
 
             <!-- Step 2: layout select -->
@@ -64,17 +81,22 @@
                     </Grid.ColumnDefinitions>
                     <DockPanel Grid.Column="0">
                         <TextBlock DockPanel.Dock="Top" Text="목록" Foreground="#FF555555" Margin="0,0,0,4"/>
-                        <ListBox x:Name="AvailableListBox" SelectionMode="Extended" MouseDoubleClick="AvailableListBox_MouseDoubleClick"/>
+                        <ListBox x:Name="AvailableListBox" SelectionMode="Extended"
+                                 ItemTemplate="{StaticResource LyricRowTemplate}"
+                                 MouseDoubleClick="AvailableListBox_MouseDoubleClick"/>
                     </DockPanel>
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="8,0">
                         <Button Content="추가 ▶" Margin="0,0,0,8" Padding="6,4" Click="AddButton_Click"/>
                         <Button Content="◀ 제거" Margin="0,0,0,8" Padding="6,4" Click="RemoveButton_Click"/>
                         <Button Content="▲" Margin="0,0,0,8" Padding="6,4" Click="UpButton_Click"/>
-                        <Button Content="▼" Padding="6,4" Click="DownButton_Click"/>
+                        <Button Content="▼" Margin="0,0,0,16" Padding="6,4" Click="DownButton_Click"/>
+                        <Button Content="미리보기" Padding="6,4" Click="PreviewButton_Click"/>
                     </StackPanel>
                     <DockPanel Grid.Column="2">
                         <TextBlock DockPanel.Dock="Top" Text="선택됨 (위에서부터 삽입)" Foreground="#FF555555" Margin="0,0,0,4"/>
-                        <ListBox x:Name="SelectedListBox"/>
+                        <ListBox x:Name="SelectedListBox"
+                                 ItemTemplate="{StaticResource LyricRowTemplate}"
+                                 MouseDoubleClick="SelectedListBox_MouseDoubleClick"/>
                     </DockPanel>
                 </Grid>
                 <TextBlock Grid.Row="3" x:Name="DataError" Foreground="#FFCC0000" TextWrapping="Wrap" Visibility="Collapsed" Margin="0,8,0,0"/>

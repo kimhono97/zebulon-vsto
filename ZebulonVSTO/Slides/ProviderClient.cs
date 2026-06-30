@@ -17,6 +17,11 @@ namespace ZebulonVSTO.Slides {
     /// resolution fails.
     /// </summary>
     public class ProviderClient {
+        // One long-lived transport for the whole add-in: the recommended HttpClient
+        // pattern, avoiding leaked handlers / socket churn across repeated dialog
+        // opens. Tests may still inject their own HttpClient via the constructor.
+        private static readonly HttpClient SharedHttp = new HttpClient();
+
         private readonly HttpClient _http;
         private string _providerUrl;
         private bool _resolved;
@@ -29,7 +34,7 @@ namespace ZebulonVSTO.Slides {
             } catch {
                 // ignore — environment may pin the protocol
             }
-            _http = http ?? new HttpClient();
+            _http = http ?? SharedHttp;
             _providerUrl = StripTrailingSlash(SlideGenDefaults.ProviderBaseUrl);
         }
 
@@ -74,6 +79,35 @@ namespace ZebulonVSTO.Slides {
                 resp.EnsureSuccessStatusCode();
                 string json = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
                 return LyricJson.ParseLyric(json);
+            }
+        }
+
+        /// <summary>GET /template → array of template paths (e.g. "templates/PRAISE_DSM.pptx").</summary>
+        public async Task<List<string>> ListTemplatesAsync() {
+            await EnsureResolvedAsync().ConfigureAwait(false);
+            string json = await _http.GetStringAsync(_providerUrl + "/template").ConfigureAwait(false);
+            return LyricJson.ParseStringArray(json);
+        }
+
+        /// <summary>
+        /// POST /template { path } → raw .pptx bytes. The Provider can return HTTP
+        /// 200 with a JSON {err} on bad input, so success is judged by the response
+        /// Content-Type (must be the openxml presentation type), not the status code.
+        /// </summary>
+        public async Task<byte[]> DownloadTemplateAsync(string path) {
+            await EnsureResolvedAsync().ConfigureAwait(false);
+            string body = "{\"path\":" + JsonQuote(path) + "}";
+            using (StringContent content = new StringContent(body, Encoding.UTF8, "application/json")) {
+                HttpResponseMessage resp = await _http.PostAsync(_providerUrl + "/template", content).ConfigureAwait(false);
+                string ctype = resp.Content.Headers.ContentType != null ? resp.Content.Headers.ContentType.MediaType : "";
+                if (!resp.IsSuccessStatusCode || ctype.IndexOf("openxmlformats", StringComparison.OrdinalIgnoreCase) < 0) {
+                    string err = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    if (err != null && err.Length > 200) {
+                        err = err.Substring(0, 200);
+                    }
+                    throw new InvalidOperationException("템플릿 다운로드 실패: " + err);
+                }
+                return await resp.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
             }
         }
 

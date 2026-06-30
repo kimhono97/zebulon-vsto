@@ -228,4 +228,52 @@ namespace ZebulonVSTO.Tests {
             Assert.Null(LyricJson.ParseLyric(input));
         }
     }
+
+    public class DisplayNamesTests {
+        [Theory]
+        [InlineData("lyrics/A-Z/Alive KEC.md", "Alive KEC")]
+        [InlineData("lyrics/Amazing.md", "Amazing")]
+        [InlineData("NoDir.md", "NoDir")]
+        public void LyricName_StripsDirAndExtension(string path, string expected) {
+            Assert.Equal(expected, DisplayNames.LyricName(path));
+        }
+
+        [Theory]
+        [InlineData("templates/PRAISE_CornerStone_Origin.pptx", "CornerStone_Origin")]
+        [InlineData("templates/WORD_DSM.pptx", "DSM")]
+        public void TemplateName_StripsPrefixAndExtension(string path, string expected) {
+            Assert.Equal(expected, DisplayNames.TemplateName(path));
+        }
+
+        [Theory]
+        [InlineData("templates/PRAISE_DSM.pptx", "Praise")]
+        [InlineData("templates/WORD_DSM.pptx", "Word")]
+        [InlineData("templates/Other.pptx", "")]
+        public void TemplateKind_FromPrefix(string path, string expected) {
+            Assert.Equal(expected, DisplayNames.TemplateKind(path));
+        }
+
+        [Fact]
+        public void SafePptxFileName_SanitizesAndAddsExtension() {
+            Assert.Equal("PRAISE_DSM.pptx", DisplayNames.SafePptxFileName("templates/PRAISE_DSM.pptx"));
+            Assert.EndsWith(".pptx", DisplayNames.SafePptxFileName("templates/NoExt"));
+            string safe = DisplayNames.SafePptxFileName("templates/a:b*c.pptx");
+            Assert.DoesNotContain(":", safe);
+            Assert.DoesNotContain("*", safe);
+        }
+
+        [Fact]
+        public void TemplateEntry_BuildsLabel() {
+            TemplateEntry entry = TemplateEntry.From("templates/PRAISE_DSM.pptx");
+            Assert.Equal("Praise", entry.Kind);
+            Assert.Equal("[Praise] DSM", entry.DisplayName);
+        }
+
+        [Fact]
+        public void LyricEntry_BuildsDisplayName() {
+            LyricEntry entry = LyricEntry.From("lyrics/A-Z/Alive KEC.md");
+            Assert.Equal("lyrics/A-Z/Alive KEC.md", entry.Path);
+            Assert.Equal("Alive KEC", entry.DisplayName);
+        }
+    }
 }

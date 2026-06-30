@@ -222,8 +222,12 @@
     <Compile Include="Slides\PraisePlanner.cs" />
     <Compile Include="Slides\ProviderClient.cs" />
     <Compile Include="Slides\SlideGenContracts.cs" />
+    <Compile Include="Slides\DisplayNames.cs" />
     <Compile Include="Slides\SlideGenWindow.xaml.cs">
       <DependentUpon>SlideGenWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Slides\LyricPreviewWindow.xaml.cs">
+      <DependentUpon>LyricPreviewWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="ThisAddIn.Slides.cs">
       <DependentUpon>ThisAddIn.cs</DependentUpon>
@@ -239,6 +243,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Slides\SlideGenWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Slides\LyricPreviewWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

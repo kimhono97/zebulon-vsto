@@ -11,10 +11,21 @@ namespace ZebulonVSTO.Slides {
         /// <summary>True if a presentation is open to insert into.</summary>
         bool HasActivePresentation();
 
-        /// <summary>Snapshot the active deck's (default master) layouts.</summary>
-        List<LayoutDescriptor> ReadActiveLayouts();
+        /// <summary>Snapshot a deck's (default master) layouts. Pass a presentation
+        /// FullName to target a specific deck, or null/"" for the active one.</summary>
+        List<LayoutDescriptor> ReadLayouts(string presentationFullName);
 
-        /// <summary>Insert the planned slides; returns the number inserted.</summary>
-        int ExecutePlan(LayoutSelection selection, List<SlidePlanItem> plan, InsertPosition position);
+        /// <summary>Insert the planned slides into the deck identified by
+        /// <paramref name="presentationFullName"/> (null/"" = active); returns the
+        /// number inserted.</summary>
+        int ExecutePlan(string presentationFullName, LayoutSelection selection, List<SlidePlanItem> plan, InsertPosition position);
+
+        /// <summary>Open a .pptx from disk (with a window). Returns the opened
+        /// deck's FullName (to target it later), or "" on failure.</summary>
+        string OpenPresentation(string path);
+
+        /// <summary>The active deck's folder, or "" if none / unsaved. Lets the
+        /// COM-free dialog default its save directory.</summary>
+        string GetActivePresentationFolder();
     }
 }

@@ -35,14 +35,14 @@ namespace ZebulonVSTO {
             return has;
         }
 
-        public List<LayoutDescriptor> ReadActiveLayouts() {
+        public List<LayoutDescriptor> ReadLayouts(string presentationFullName) {
             List<LayoutDescriptor> result = new List<LayoutDescriptor>();
             if (_dispatcher == null) {
                 return result;
             }
             try {
                 _dispatcher.Invoke(() => {
-                    Presentation pres = SafeActivePresentation();
+                    Presentation pres = ResolvePresentation(presentationFullName);
                     if (pres == null) {
                         return;
                     }
@@ -72,14 +72,17 @@ namespace ZebulonVSTO {
             return result;
         }
 
-        public int ExecutePlan(LayoutSelection selection, List<SlidePlanItem> plan, InsertPosition position) {
+        public int ExecutePlan(string presentationFullName, LayoutSelection selection, List<SlidePlanItem> plan, InsertPosition position) {
             if (_dispatcher == null || selection == null || plan == null) {
                 return 0;
             }
             int inserted = 0;
             try {
                 _dispatcher.Invoke(() => {
-                    Presentation pres = SafeActivePresentation();
+                    // Target the deck the wizard scanned (by FullName), NOT whatever
+                    // happens to be active — a download-opened deck may not be the
+                    // active presentation under the modal dialog.
+                    Presentation pres = ResolvePresentation(presentationFullName);
                     if (pres == null) {
                         return;
                     }
@@ -100,11 +103,71 @@ namespace ZebulonVSTO {
                         insertAt++;
                         inserted++;
                     }
+                    // Bring the edited deck to the front so the user sees the result
+                    // (it may not be the active window when opened via download).
+                    if (inserted > 0) {
+                        try {
+                            if (pres.Windows.Count > 0) {
+                                pres.Windows[1].Activate();
+                            }
+                        } catch {
+                            // best-effort
+                        }
+                    }
                 });
             } catch (Exception e) {
                 LogError("Failed to insert generated slides.", e);
             }
             return inserted;
+        }
+
+        public string OpenPresentation(string path) {
+            if (_dispatcher == null || string.IsNullOrEmpty(path)) {
+                return "";
+            }
+            string fullName = "";
+            try {
+                _dispatcher.Invoke(() => {
+                    // WithWindow=msoTrue so the deck gets a window; ReadOnly/Untitled=
+                    // msoFalse keep it bound to the file the user just saved. Return
+                    // its FullName so the wizard can target this exact deck regardless
+                    // of which presentation is "active" under the modal dialog.
+                    Presentation pres = Application.Presentations.Open(
+                        path, Core.MsoTriState.msoFalse, Core.MsoTriState.msoFalse, Core.MsoTriState.msoTrue);
+                    if (pres != null) {
+                        try {
+                            fullName = pres.FullName;
+                        } catch {
+                            fullName = path;
+                        }
+                    }
+                });
+            } catch (Exception e) {
+                LogError("Failed to open downloaded presentation.", e);
+            }
+            return fullName;
+        }
+
+        public string GetActivePresentationFolder() {
+            if (_dispatcher == null) {
+                return "";
+            }
+            string folder = "";
+            try {
+                _dispatcher.Invoke(() => {
+                    Presentation pres = SafeActivePresentation();
+                    if (pres != null) {
+                        try {
+                            folder = pres.Path ?? ""; // empty for a never-saved deck
+                        } catch {
+                            folder = "";
+                        }
+                    }
+                });
+            } catch {
+                // ignore — fall back to empty
+            }
+            return folder;
         }
 
         #region Interop helpers (UI thread only)
@@ -118,6 +181,32 @@ namespace ZebulonVSTO {
             } catch {
                 return null;
             }
+        }
+
+        // Resolve the wizard's target deck: a specific open presentation by
+        // FullName, or the active presentation when no target is given (manual
+        // path). Falls back to the active deck if the named one isn't found.
+        private Presentation ResolvePresentation(string fullName) {
+            try {
+                if (!string.IsNullOrEmpty(fullName)) {
+                    Presentations all = Application.Presentations;
+                    for (int i = 1; i <= all.Count; i++) {
+                        Presentation p = all[i];
+                        string fn = "";
+                        try {
+                            fn = p.FullName;
+                        } catch {
+                            // some presentations may not expose FullName; skip
+                        }
+                        if (string.Equals(fn, fullName, StringComparison.OrdinalIgnoreCase)) {
+                            return p;
+                        }
+                    }
+                }
+            } catch {
+                // fall through to the active presentation
+            }
+            return SafeActivePresentation();
         }
 
         private static CustomLayout LayoutAt(CustomLayouts layouts, int index) {
@@ -134,7 +223,9 @@ namespace ZebulonVSTO {
                     return 1;
                 case InsertPosition.AfterCurrent:
                     try {
-                        Slide cur = Application.ActiveWindow.View.Slide as Slide;
+                        // Use the target deck's own window, not Application.ActiveWindow
+                        // (which may belong to a different deck).
+                        Slide cur = pres.Windows.Count > 0 ? pres.Windows[1].View.Slide as Slide : null;
                         return cur != null ? Math.Min(cur.SlideIndex + 1, count + 1) : count + 1;
                     } catch {
                         return count + 1;

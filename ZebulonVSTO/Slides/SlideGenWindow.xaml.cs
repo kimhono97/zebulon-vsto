@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -11,8 +12,11 @@ namespace ZebulonVSTO.Slides {
     /// Interaction logic for SlideGenWindow.xaml — a modal wizard that inserts
     /// Zebulon slides directly into the active deck. Steps: pick type → pick a
     /// bind layout → pick lyrics (from the Provider) → pick insert position →
-    /// generate. Mirrors the SetupWizard pattern (Visibility-toggled panels,
-    /// modal, PowerPoint-owned). Provider I/O is async; Interop runs through
+    /// generate. The type step can also download a template from the Provider,
+    /// save it (user-chosen folder/name), open it, and continue. Lyric rows show
+    /// a derived title + path; a preview dialog shows the selected lyric's text.
+    /// Mirrors the SetupWizard pattern (Visibility-toggled panels, modal,
+    /// PowerPoint-owned). Provider I/O is async; Interop runs through
     /// <see cref="ISlideBuilder"/> (marshalled to the UI thread by the host).
     /// </summary>
     public partial class SlideGenWindow {
@@ -36,11 +40,16 @@ namespace ZebulonVSTO.Slides {
         private Step _step = Step.Type;
         private LayoutMatch _selectedBind;
         private int _emptyLayoutIndex = -1;
+        private string _targetDeck; // null/"" = active presentation; set when a template is downloaded & opened
 
-        private List<string> _allPaths = new List<string>();
-        private readonly ObservableCollection<string> _available = new ObservableCollection<string>();
-        private readonly ObservableCollection<string> _selected = new ObservableCollection<string>();
+        private List<LyricEntry> _allEntries = new List<LyricEntry>();
+        private readonly ObservableCollection<LyricEntry> _available = new ObservableCollection<LyricEntry>();
+        private readonly ObservableCollection<LyricEntry> _selected = new ObservableCollection<LyricEntry>();
+        private readonly HashSet<string> _selectedPaths = new HashSet<string>();
+        private readonly Dictionary<string, Lyric> _lyricCache = new Dictionary<string, Lyric>();
+
         private bool _lyricsLoaded;
+        private bool _templatesLoaded;
         private bool _busy;
 
         public SlideGenWindow() {
@@ -48,21 +57,25 @@ namespace ZebulonVSTO.Slides {
             _builder = Globals.ThisAddIn;
             AvailableListBox.ItemsSource = _available;
             SelectedListBox.ItemsSource = _selected;
-            Loaded += delegate { Initialize(); };
+            Loaded += OnLoaded;
         }
 
+        private async void OnLoaded(object sender, RoutedEventArgs e) {
+            Initialize();
+            await LoadTemplatesAsync();
+        }
+
+        // Scans the active deck and refreshes the type-step state. Idempotent — also
+        // called again after a template is downloaded and opened.
         private void Initialize() {
-            if (!_builder.HasActivePresentation()) {
-                PraiseCard.IsEnabled = false;
-                PraiseStatus.Text = "열린 프레젠테이션이 없습니다.";
-                ShowStep(Step.Type);
-                return;
-            }
-            _layouts = _builder.ReadActiveLayouts();
+            _layouts = _builder.ReadLayouts(_targetDeck);
             _praiseMatch = LayoutMatching.Match(_layouts, SlideGenDefaults.PraiseBoxCount);
             if (_praiseMatch.IsAvailable) {
                 PraiseStatus.Text = "사용 가능 — bind 레이아웃 " + _praiseMatch.BindCandidates.Count + "개";
                 PraiseCard.IsEnabled = true;
+            } else if (string.IsNullOrEmpty(_targetDeck) && !_builder.HasActivePresentation()) {
+                PraiseStatus.Text = "열린 프레젠테이션이 없습니다.";
+                PraiseCard.IsEnabled = false;
             } else if (_praiseMatch.BindCandidates.Count > 0 && !_praiseMatch.HasEmpty) {
                 PraiseStatus.Text = "구분용 빈(empty) 레이아웃이 없어 사용 불가.";
                 PraiseCard.IsEnabled = false;
@@ -89,6 +102,9 @@ namespace ZebulonVSTO.Slides {
         }
 
         private void PraiseCard_Click(object sender, RoutedEventArgs e) {
+            if (_busy) {
+                return; // ignore navigation while a download/open is in flight
+            }
             EnterLayoutStep();
         }
 
@@ -152,6 +168,113 @@ namespace ZebulonVSTO.Slides {
 
         #endregion
 
+        #region Template download (type step)
+
+        private async Task LoadTemplatesAsync() {
+            if (_templatesLoaded) {
+                return;
+            }
+            TemplateStatus.Text = "템플릿 목록 불러오는 중…";
+            try {
+                List<string> paths = await _provider.ListTemplatesAsync();
+                TemplateCombo.Items.Clear();
+                foreach (string p in paths ?? new List<string>()) {
+                    TemplateCombo.Items.Add(TemplateEntry.From(p));
+                }
+                if (TemplateCombo.Items.Count > 0) {
+                    TemplateCombo.SelectedIndex = 0;
+                }
+                _templatesLoaded = true;
+                TemplateStatus.Text = "";
+            } catch (Exception ex) {
+                TemplateStatus.Text = "템플릿 목록을 불러오지 못했습니다: " + ex.Message;
+            }
+        }
+
+        private async void DownloadButton_Click(object sender, RoutedEventArgs e) {
+            if (_busy) {
+                return;
+            }
+            TemplateEntry tpl = TemplateCombo.SelectedItem as TemplateEntry;
+            if (tpl == null) {
+                TemplateStatus.Text = "템플릿을 선택하세요.";
+                return;
+            }
+            SetBusy(true);
+            TemplateStatus.Text = "다운로드 중…";
+            try {
+                byte[] bytes = await _provider.DownloadTemplateAsync(tpl.Path);
+
+                // Let the user choose the destination folder AND filename.
+                Microsoft.Win32.SaveFileDialog dlg = new Microsoft.Win32.SaveFileDialog {
+                    Title = "다운로드한 템플릿 저장",
+                    Filter = "PowerPoint 프레젠테이션 (*.pptx)|*.pptx",
+                    DefaultExt = ".pptx",
+                    AddExtension = true,
+                    OverwritePrompt = true,
+                    FileName = DisplayNames.SafePptxFileName(tpl.Path)
+                };
+                string dir = _builder.GetActivePresentationFolder();
+                if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) {
+                    dir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                }
+                dlg.InitialDirectory = dir;
+                if (dlg.ShowDialog(this) != true) {
+                    TemplateStatus.Text = "저장이 취소되었습니다.";
+                    return;
+                }
+
+                string path = dlg.FileName;
+                // Write off the UI thread, via a temp file, so a failed/partial
+                // write never leaves a truncated .pptx in place.
+                await Task.Run(() => {
+                    string tmp = path + ".download.tmp";
+                    try {
+                        File.WriteAllBytes(tmp, bytes);
+                        if (File.Exists(path)) {
+                            File.Delete(path); // may throw if the target is open in PowerPoint
+                        }
+                        File.Move(tmp, path);
+                    } catch {
+                        // don't leave the temp file orphaned when the move fails
+                        try {
+                            if (File.Exists(tmp)) {
+                                File.Delete(tmp);
+                            }
+                        } catch {
+                            // best-effort cleanup
+                        }
+                        throw;
+                    }
+                });
+                TemplateStatus.Text = "저장됨: " + path;
+
+                MessageBoxResult ans = MessageBox.Show(this,
+                    "저장한 템플릿을 열고 이어서 슬라이드 생성을 진행할까요?",
+                    "슬라이드 생성", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (ans == MessageBoxResult.Yes) {
+                    string opened = _builder.OpenPresentation(path);
+                    if (!string.IsNullOrEmpty(opened)) {
+                        _targetDeck = opened; // bind the wizard to this exact deck
+                        Initialize();         // re-scan the opened deck
+                        if (_praiseMatch.IsAvailable) {
+                            EnterLayoutStep();
+                        } else {
+                            TemplateStatus.Text = "열었지만 적합한 Praise 레이아웃이 없습니다.";
+                        }
+                    } else {
+                        TemplateStatus.Text = "열기에 실패했습니다.";
+                    }
+                }
+            } catch (Exception ex) {
+                TemplateStatus.Text = "오류: " + ex.Message;
+            } finally {
+                SetBusy(false);
+            }
+        }
+
+        #endregion
+
         #region Data step
 
         private async Task EnterDataStepAsync() {
@@ -163,10 +286,10 @@ namespace ZebulonVSTO.Slides {
             DataStatus.Text = "목록 불러오는 중…";
             try {
                 List<string> paths = await _provider.ListLyricsAsync();
-                _allPaths = paths ?? new List<string>();
+                _allEntries = (paths ?? new List<string>()).Select(LyricEntry.From).ToList();
                 _lyricsLoaded = true;
                 ApplyFilter(FilterBox.Text);
-                DataStatus.Text = _allPaths.Count + "개";
+                DataStatus.Text = _allEntries.Count + "개";
             } catch (Exception ex) {
                 DataStatus.Text = "";
                 ShowError(DataError, "목록을 불러오지 못했습니다: " + ex.Message);
@@ -184,18 +307,27 @@ namespace ZebulonVSTO.Slides {
         private void ApplyFilter(string filter) {
             filter = (filter ?? "").Trim();
             _available.Clear();
-            foreach (string p in _allPaths) {
-                if (_selected.Contains(p)) {
+            foreach (LyricEntry entry in _allEntries) {
+                if (_selectedPaths.Contains(entry.Path)) {
                     continue;
                 }
-                if (filter.Length == 0 || p.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0) {
-                    _available.Add(p);
+                if (filter.Length == 0 || Matches(entry, filter)) {
+                    _available.Add(entry);
                 }
             }
         }
 
+        private static bool Matches(LyricEntry entry, string filter) {
+            return (entry.DisplayName != null && entry.DisplayName.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0)
+                || (entry.Path != null && entry.Path.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0);
+        }
+
         private void AvailableListBox_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e) {
             AddSelected();
+        }
+
+        private void SelectedListBox_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e) {
+            RemoveSelected();
         }
 
         private void AddButton_Click(object sender, RoutedEventArgs e) {
@@ -203,19 +335,24 @@ namespace ZebulonVSTO.Slides {
         }
 
         private void AddSelected() {
-            List<string> picks = AvailableListBox.SelectedItems.Cast<string>().ToList();
-            foreach (string p in picks) {
-                if (!_selected.Contains(p)) {
-                    _selected.Add(p);
+            List<LyricEntry> picks = AvailableListBox.SelectedItems.Cast<LyricEntry>().ToList();
+            foreach (LyricEntry entry in picks) {
+                if (_selectedPaths.Add(entry.Path)) {
+                    _selected.Add(entry);
                 }
             }
             ApplyFilter(FilterBox.Text);
         }
 
         private void RemoveButton_Click(object sender, RoutedEventArgs e) {
-            List<string> picks = SelectedListBox.SelectedItems.Cast<string>().ToList();
-            foreach (string p in picks) {
-                _selected.Remove(p);
+            RemoveSelected();
+        }
+
+        private void RemoveSelected() {
+            List<LyricEntry> picks = SelectedListBox.SelectedItems.Cast<LyricEntry>().ToList();
+            foreach (LyricEntry entry in picks) {
+                _selected.Remove(entry);
+                _selectedPaths.Remove(entry.Path);
             }
             ApplyFilter(FilterBox.Text);
         }
@@ -241,6 +378,36 @@ namespace ZebulonVSTO.Slides {
             SelectedListBox.SelectedIndex = j;
         }
 
+        private async void PreviewButton_Click(object sender, RoutedEventArgs e) {
+            if (_busy) {
+                return;
+            }
+            LyricEntry entry = (AvailableListBox.SelectedItem as LyricEntry)
+                            ?? (SelectedListBox.SelectedItem as LyricEntry);
+            if (entry == null) {
+                ShowError(DataError, "미리볼 항목을 선택하세요.");
+                return;
+            }
+            ClearErrors();
+            SetBusy(true);
+            DataStatus.Text = "미리보기 불러오는 중…";
+            try {
+                Lyric lyric = await GetLyricCachedAsync(entry.Path);
+                DataStatus.Text = "";
+                if (lyric == null) {
+                    ShowError(DataError, "가사를 불러오지 못했습니다.");
+                    return;
+                }
+                LyricPreviewWindow win = new LyricPreviewWindow(lyric) { Owner = this };
+                win.ShowDialog();
+            } catch (Exception ex) {
+                DataStatus.Text = "";
+                ShowError(DataError, "미리보기 오류: " + ex.Message);
+            } finally {
+                SetBusy(false);
+            }
+        }
+
         #endregion
 
         #region Generate
@@ -257,8 +424,8 @@ namespace ZebulonVSTO.Slides {
             GenStatus.Text = "가사 불러오는 중…";
             try {
                 List<Lyric> lyrics = new List<Lyric>();
-                foreach (string path in _selected) {
-                    Lyric lyric = await _provider.GetLyricAsync(path);
+                foreach (LyricEntry entry in _selected) {
+                    Lyric lyric = await GetLyricCachedAsync(entry.Path);
                     if (lyric != null) {
                         lyrics.Add(lyric);
                     }
@@ -274,7 +441,7 @@ namespace ZebulonVSTO.Slides {
                     EmptyLayoutIndex = _emptyLayoutIndex
                 };
                 GenStatus.Text = "슬라이드 삽입 중…";
-                int inserted = _builder.ExecutePlan(sel, plan, pos);
+                int inserted = _builder.ExecutePlan(_targetDeck, sel, plan, pos);
                 if (inserted > 0) {
                     DialogResult = true;
                     Close();
@@ -288,6 +455,18 @@ namespace ZebulonVSTO.Slides {
             }
         }
 
+        private async Task<Lyric> GetLyricCachedAsync(string path) {
+            Lyric cached;
+            if (_lyricCache.TryGetValue(path, out cached)) {
+                return cached;
+            }
+            Lyric lyric = await _provider.GetLyricAsync(path);
+            if (lyric != null) {
+                _lyricCache[path] = lyric;
+            }
+            return lyric;
+        }
+
         #endregion
 
         #region Helpers
@@ -296,6 +475,7 @@ namespace ZebulonVSTO.Slides {
             _busy = busy;
             NextButton.IsEnabled = !busy;
             BackButton.IsEnabled = !busy;
+            DownloadButton.IsEnabled = !busy;
         }
 
         private static Visibility Vis(bool visible) {

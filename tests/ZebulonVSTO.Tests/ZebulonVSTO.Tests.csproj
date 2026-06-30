@@ -31,6 +31,7 @@
     <Compile Include="..\..\ZebulonVSTO\Slides\TextTransforms.cs" Link="UnderTest\TextTransforms.cs" />
     <Compile Include="..\..\ZebulonVSTO\Slides\LayoutMatching.cs" Link="UnderTest\LayoutMatching.cs" />
     <Compile Include="..\..\ZebulonVSTO\Slides\PraisePlanner.cs" Link="UnderTest\PraisePlanner.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\DisplayNames.cs" Link="UnderTest\DisplayNames.cs" />
   </ItemGroup>
 
   <ItemGroup>
