@@ -94,9 +94,19 @@ namespace ZebulonVSTO {
         }
 
         private void OnSelectSlide(SlideRange range) {
-            int index = range.SlideIndex;
-            Log("[Event] SelectSlide " + index);
-            _syncManager.SendRequestMessage("select " + index);
+            // SlideRange.SlideIndex throws COMException 0x80048240 ("Illegal property
+            // fetch from a range with mixed values") when more than one slide is
+            // selected. Guard the count and fall back to the range's first slide.
+            try {
+                if (range == null || range.Count < 1) {
+                    return;
+                }
+                int index = range.Count == 1 ? range.SlideIndex : range[1].SlideIndex;
+                Log("[Event] SelectSlide " + index);
+                _syncManager.SendRequestMessage("select " + index);
+            } catch (Exception e) {
+                LogError("Failed to handle slide selection.", e);
+            }
         }
         private void OnSlideShow(SlideShowWindow window) {
             int index = window.View.Slide.SlideIndex;
