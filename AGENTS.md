@@ -99,7 +99,9 @@ ZebulonVSTO/
   ThisAddIn.Designer.cs     ← VSTO-generated plumbing (Globals, ribbon collection) — DO NOT hand-edit
   ThisAddIn.Designer.xml    ← VSTO host blueprint (generates ThisAddIn.Designer.cs) — DO NOT hand-edit
   MainRibbon.cs             ← ribbon callbacks ([ComVisible] IRibbonExtensibility)
-  MainRibbon.xml            ← declarative ribbon UI (embedded resource)
+  MainRibbon.xml            ← declarative ribbon UI (embedded resource); custom images via loadImage → MainRibbon.LoadImage
+  AboutWindow.xaml(.cs)     ← WPF "Zebulon 정보" dialog (logo, version, repo/Web links, copy version line)
+  Resources/                ← brand icons: zebulon-32.png (ribbon, EmbeddedResource), zebulon-64.png + zebulon.ico (WPF Resource; every Window's Icon)
   Sync/
     SyncManager.cs          ← UDP transport singleton (send/receive, modes); collaborators injected via Attach()
     Message.cs              ← SyncMessage wire DTO + MessageType enum (DataContractJsonSerializer)

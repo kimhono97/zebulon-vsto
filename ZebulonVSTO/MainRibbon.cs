@@ -1,5 +1,6 @@
 using Microsoft.Office.Core;
 using System;
+using System.Drawing;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -88,6 +89,21 @@ namespace ZebulonVSTO {
 
         public void Ribbon_Load(Office.IRibbonUI ribbonUI) {
             _ribbon = ribbonUI;
+        }
+
+        /// <summary>customUI loadImage: resolves an image="…" id to the embedded
+        /// PNG under Resources/. A Bitmap (not IPictureDisp) keeps PNG alpha.</summary>
+        public Bitmap LoadImage(string imageId) {
+            Stream s = Assembly.GetExecutingAssembly().GetManifestResourceStream("ZebulonVSTO.Resources." + imageId);
+            if (s == null) {
+                return null;
+            }
+            // GDI+ needs the source stream for the bitmap's lifetime; copy so
+            // the stream can be released here.
+            using (s)
+            using (Bitmap src = new Bitmap(s)) {
+                return new Bitmap(src);
+            }
         }
 
         /// <summary>Refresh the peer status line after a peer change (invoked by

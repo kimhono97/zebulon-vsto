@@ -7,7 +7,7 @@
     mc:Ignorable="d"
     FontFamily="Malgun Gothic" FontSize="13"
     Height="680" Width="740" MinHeight="580" MinWidth="660"
-    Title="구절 추가" ShowInTaskbar="False" WindowStartupLocation="CenterOwner">
+    Title="구절 추가" Icon="/ZebulonVSTO;component/Resources/zebulon.ico" ShowInTaskbar="False" WindowStartupLocation="CenterOwner">
     <Window.Resources>
         <!-- Verse tap-row: number + preview text + start/end marker. The row
              background / border reflect VerseRow.Role (single/start/end/middle),

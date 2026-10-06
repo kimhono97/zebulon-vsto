@@ -160,6 +160,9 @@
     can be found.
   -->
   <ItemGroup>
+    <Compile Include="AboutWindow.xaml.cs">
+      <DependentUpon>AboutWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="MainRibbon.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
@@ -211,6 +214,10 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="MainRibbon.xml" />
+    <!-- Brand icons: PNG -> ribbon (loadImage); ICO/64px PNG -> WPF (title bars, About logo) -->
+    <EmbeddedResource Include="Resources\zebulon-32.png" />
+    <Resource Include="Resources\zebulon.ico" />
+    <Resource Include="Resources\zebulon-64.png" />
   </ItemGroup>
   <ItemGroup>
     <!-- Slide-generation feature (Zebulon direct insert) -->
@@ -246,6 +253,10 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Page Include="AboutWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Sync\SetupWizard.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

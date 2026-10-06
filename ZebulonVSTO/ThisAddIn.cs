@@ -1,6 +1,4 @@
 using System;
-using System.Diagnostics;
-using System.Reflection;
 using System.Windows.Forms;
 using System.Windows.Threading;
 using Microsoft.Office.Interop.PowerPoint;
@@ -32,14 +30,10 @@ namespace ZebulonVSTO {
         }
 
         public void ShowInfoDlg() {
-            Assembly assembly = Assembly.GetExecutingAssembly();
-            FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(assembly.Location);
-
-            string info = " * Name\t\t: " + versionInfo.ProductName;
-            info += "\n * Version\t: " + versionInfo.ProductVersion;
-            info += "\n * Copyright\t: " + versionInfo.LegalCopyright;
-
-            MessageBox.Show(info, "About");
+            // Modal, owned by the PowerPoint main window (same as the wizards).
+            AboutWindow about = new AboutWindow();
+            new System.Windows.Interop.WindowInteropHelper(about).Owner = (IntPtr)Application.HWND;
+            about.ShowDialog();
         }
         public void ShowSyncConsole() {
             _syncConsole = new SyncConsole(_syncConsole);

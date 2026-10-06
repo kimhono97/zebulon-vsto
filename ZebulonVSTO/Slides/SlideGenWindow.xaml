@@ -7,7 +7,7 @@
     mc:Ignorable="d"
     FontFamily="Malgun Gothic" FontSize="13"
     Height="600" Width="620" MinHeight="540" MinWidth="560"
-    Title="슬라이드 생성" ShowInTaskbar="False" WindowStartupLocation="CenterOwner">
+    Title="슬라이드 생성" Icon="/ZebulonVSTO;component/Resources/zebulon.ico" ShowInTaskbar="False" WindowStartupLocation="CenterOwner">
     <Window.Resources>
         <!-- Two-line list row: derived title (large) + raw path (small, grey) -->
         <DataTemplate x:Key="LyricRowTemplate">
