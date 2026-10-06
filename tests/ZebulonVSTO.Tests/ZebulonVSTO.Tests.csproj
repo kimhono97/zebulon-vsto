@@ -39,6 +39,10 @@
     <Compile Include="..\..\ZebulonVSTO\Slides\VerseSelection.cs" Link="UnderTest\VerseSelection.cs" />
     <Compile Include="..\..\ZebulonVSTO\Slides\WordAssembler.cs" Link="UnderTest\WordAssembler.cs" />
     <Compile Include="..\..\ZebulonVSTO\Slides\WordPlanner.cs" Link="UnderTest\WordPlanner.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\LanguageCatalog.cs" Link="UnderTest\LanguageCatalog.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\WordSelectPrefs.cs" Link="UnderTest\WordSelectPrefs.cs" />
+    <!-- Per-user preferences (JSON, COM-free) -->
+    <Compile Include="..\..\ZebulonVSTO\Preferences.cs" Link="UnderTest\Preferences.cs" />
   </ItemGroup>
 
   <ItemGroup>

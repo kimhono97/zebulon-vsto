@@ -39,10 +39,12 @@ AGENTS.md           this file
   `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\ZebulonVSTO`
   (`DisplayIcon` = the installed `zebulon.ico`, `UninstallString` = the installed
   `Uninstall.ps1`). Updating is just re-running it over a freshly extracted newer
-  package.
+  package; saved preferences (`%APPDATA%\ZebulonVSTO\preferences.json`, e.g. the
+  remembered scripture languages/versions) are kept across updates.
 - **Uninstall:** close PowerPoint, then either Settings > Apps > Installed apps >
   ZebulonVSTO > Uninstall, or `... -File .\Uninstall.ps1` from the package
-  (removes both registry keys, the install folder, and the trusted cert).
+  (removes both registry keys, the install folder, the saved preferences
+  folder `%APPDATA%\ZebulonVSTO`, and the trusted cert).
 
 ## Using the add-in
 PowerPoint → **Add-Ins** ribbon tab → **"Zebulon"**. Pick **모드/Mode**

@@ -4,9 +4,10 @@
 
 .DESCRIPTION
     Unregisters the add-in (HKCU) and its Apps & Features entry, deletes the
-    installed files, and best-effort removes the bundled signing certificate
-    from the current user's stores. Runs either from the extracted package or
-    as the installed copy (Settings > Apps > Uninstall).
+    installed files and the saved preferences (%APPDATA%\ZebulonVSTO), and
+    best-effort removes the bundled signing certificate from the current
+    user's stores. Runs either from the extracted package or as the installed
+    copy (Settings > Apps > Uninstall).
     Verifies removal and reports the result in a dialog box. Per-user only - no
     administrator rights required.
 
@@ -20,6 +21,7 @@ $ErrorActionPreference = 'Stop'
 
 $packageRoot = $PSScriptRoot
 $target      = Join-Path $env:LOCALAPPDATA 'ZebulonVSTO'
+$prefsDir    = Join-Path $env:APPDATA 'ZebulonVSTO'   # preferences.json (remembered UI settings)
 $addinKey    = 'HKCU:\Software\Microsoft\Office\PowerPoint\Addins\ZebulonVSTO'
 $appsKey     = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\ZebulonVSTO'
 # The cert sits in ZebulonVSTO\ when run from the package, or beside this
@@ -90,6 +92,18 @@ try {
         Write-Host '  Install folder not found (already removed).'
     }
 
+    # --- delete saved preferences (uninstall = full removal; updates keep them) ---
+    $prefsGone = $true
+    if (Test-Path $prefsDir) {
+        try {
+            Remove-Item -Path $prefsDir -Recurse -Force
+            Write-Host "  Deleted saved preferences $prefsDir."
+        } catch {
+            $prefsGone = $false
+            Write-Warning "Could not delete $prefsDir : $($_.Exception.Message)"
+        }
+    }
+
     # --- best-effort: remove the bundled certificate from CurrentUser stores ---
     if ($thumb) {
         Write-Host '  Removing signing certificate. Windows may prompt - click Yes to actually remove the trusted certificate.' -ForegroundColor Yellow
@@ -112,6 +126,7 @@ try {
         'Registry entry removed' = -not (Test-Path $addinKey)
         'Apps entry removed'     = -not (Test-Path $appsKey)
         'Installed files removed' = $filesGone -and (-not (Test-Path $target))
+        'Preferences removed'     = $prefsGone -and (-not (Test-Path $prefsDir))
     }
     Write-Host ''
     Write-Host 'Verification:'

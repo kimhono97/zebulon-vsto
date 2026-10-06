@@ -164,6 +164,7 @@
       <DependentUpon>AboutWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="MainRibbon.cs" />
+    <Compile Include="Preferences.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -239,6 +240,7 @@
     <Compile Include="Slides\BibleClient.cs" />
     <Compile Include="Slides\WordAssembler.cs" />
     <Compile Include="Slides\WordPlanner.cs" />
+    <Compile Include="Slides\WordSelectPrefs.cs" />
     <Compile Include="Slides\WordSelectWindow.xaml.cs">
       <DependentUpon>WordSelectWindow.xaml</DependentUpon>
     </Compile>

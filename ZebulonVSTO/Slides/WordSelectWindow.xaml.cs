@@ -108,31 +108,86 @@ namespace ZebulonVSTO.Slides {
             for (int i = 1; i <= 3; i++) {
                 LangCountCombo.Items.Add(i);
             }
-            LangCountCombo.SelectedIndex = 2; // default language count = 3
-
-            string[] defaults = { "ko-KR", "en-US", "zh-CN" };
             for (int slot = 0; slot < 3; slot++) {
-                ComboBox lc = _langCombos[slot];
                 foreach (BibleLanguage lang in LanguageCatalog.All) {
-                    lc.Items.Add(lang);
+                    _langCombos[slot].Items.Add(lang);
                 }
-                int idx = IndexOfLanguage(defaults[slot]);
-                lc.SelectedIndex = idx >= 0 ? idx : 0;
-
                 ComboBox rb = _rubyCombos[slot];
                 rb.Items.Add("한자만");
                 rb.Items.Add("후리가나");
                 rb.Items.Add("한자+후리가나");
-                rb.SelectedIndex = 0;
             }
 
-            _loaded = true;
-            for (int slot = 0; slot < 3; slot++) {
-                RefreshVersionCombo(slot);
-            }
+            // Start from the last configuration used for a successful "추가"
+            // (a congregation usually reuses one setup), else the defaults.
+            WordSelectPrefs saved = PreferencesStore.Load().WordSelect;
+            ApplyPrefs((saved ?? WordSelectPrefs.Defaults()).Normalized());
+
             RebuildBookList();
-            UpdateSlotVisibility();
             RefreshSelection();
+        }
+
+        // Push a (normalized) configuration into the slot combos. Selection
+        // handlers are muted meanwhile (they bail while !_loaded); the caller
+        // decides whether the book list / preview must follow the primary slot.
+        private void ApplyPrefs(WordSelectPrefs prefs) {
+            _loaded = false;
+            LangCountCombo.SelectedIndex = prefs.LangCount - 1;
+            for (int slot = 0; slot < 3; slot++) {
+                WordSlotPref sp = prefs.Slots[slot];
+                int idx = IndexOfLanguage(sp.Language);
+                _langCombos[slot].SelectedIndex = idx >= 0 ? idx : 0;
+                RefreshVersionCombo(slot); // selects the language's first version
+                if (sp.Version != null) {
+                    foreach (BibleVersion v in _verCombos[slot].Items) {
+                        if (string.Equals(v.Code, sp.Version, StringComparison.OrdinalIgnoreCase)) {
+                            _verCombos[slot].SelectedItem = v;
+                            break;
+                        }
+                    }
+                }
+                UpdateRubyEnabled(slot);
+                _rubyCombos[slot].SelectedIndex = sp.Ruby;
+            }
+            _loaded = true;
+            UpdateSlotVisibility();
+        }
+
+        // Snapshot of the slot combos (hidden slots included) for persisting.
+        private WordSelectPrefs CurrentPrefs() {
+            WordSelectPrefs p = new WordSelectPrefs { LangCount = LangCount, Slots = new List<WordSlotPref>() };
+            for (int slot = 0; slot < 3; slot++) {
+                BibleLanguage lang = SlotLanguage(slot);
+                BibleVersion v = SlotVersion(slot);
+                int ruby = _rubyCombos[slot].SelectedIndex;
+                p.Slots.Add(new WordSlotPref {
+                    Language = lang != null ? lang.Code : null,
+                    Version = v != null ? v.Code : null,
+                    Ruby = ruby < 0 ? 0 : ruby
+                });
+            }
+            return p;
+        }
+
+        private async void ResetPrefs_Click(object sender, RoutedEventArgs e) {
+            if (_busy) {
+                return;
+            }
+            BibleLanguage oldLang = SlotLanguage(0);
+            BibleVersion oldVer = SlotVersion(0);
+            int oldRuby = Ruby0.SelectedIndex;
+
+            // Not persisted here — like any other edit, it's saved on a successful "추가".
+            ApplyPrefs(WordSelectPrefs.Defaults().Normalized());
+
+            // Only disturb the book/verse picker when the primary slot actually
+            // changed (the same rules as editing slot 0 by hand).
+            if (!ReferenceEquals(oldLang, SlotLanguage(0))) {
+                RebuildBookList();
+                await LoadChapterAsync();
+            } else if (!ReferenceEquals(oldVer, SlotVersion(0)) || oldRuby != Ruby0.SelectedIndex) {
+                await LoadChapterAsync();
+            }
         }
 
         private static int IndexOfLanguage(string code) {
@@ -451,6 +506,11 @@ namespace ZebulonVSTO.Slides {
                     return;
                 }
                 Result = item;
+                // Remember this configuration for next time (best effort; load
+                // first so other features' sections are kept).
+                Preferences prefs = PreferencesStore.Load();
+                prefs.WordSelect = CurrentPrefs();
+                PreferencesStore.Save(prefs);
                 DialogResult = true;
                 Close();
             } catch (Exception ex) {
