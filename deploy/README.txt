@@ -27,7 +27,9 @@ UDP로 한 PowerPoint(송신)의 슬라이드 이동을 다른 PowerPoint(수신
 (PowerPoint는 닫은 상태에서)
 
 [ 제거 ]
-PowerPoint를 닫고 Uninstall.ps1 을 실행합니다.
+PowerPoint를 닫고 다음 중 하나로 제거합니다.
+- Windows 설정 > 앱 > 설치된 앱 > "ZebulonVSTO" > 제거
+- 또는 압축을 푼 폴더의 Uninstall.ps1 실행
 
 [ 사용법 ]
 - PowerPoint > 추가 기능 탭 > "Zebulon" 그룹 > [동기화 시작] 클릭
