@@ -35,8 +35,10 @@ namespace ZebulonVSTO {
 
             RepoLink.NavigateUri = new Uri(RepoUrl);
             RepoLink.ToolTip = RepoUrl;
-            WebLink.NavigateUri = new Uri(SlideGenDefaults.WebBaseUrl);
-            WebLink.ToolTip = SlideGenDefaults.WebBaseUrl;
+            // WebBaseUrl's root is not Zebulon Web itself; the app lives under /zebulon.
+            string webUrl = SlideGenDefaults.WebBaseUrl.TrimEnd('/') + "/zebulon";
+            WebLink.NavigateUri = new Uri(webUrl);
+            WebLink.ToolTip = webUrl;
         }
 
         private void Link_RequestNavigate(object sender, RequestNavigateEventArgs e) {
