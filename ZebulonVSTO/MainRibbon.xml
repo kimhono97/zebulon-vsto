@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui" onLoad="Ribbon_Load">
+<customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui" onLoad="Ribbon_Load" loadImage="LoadImage">
   <ribbon>
     <tabs>
       <tab idMso="TabAddIns" label="Zebulon">
 		  <group id="GroupInfo" label="정보">
-			  <button id="BtnAbout" label="Zebulon 정보" size="large" imageMso="Info" onAction="OnBtnAction"/>
+			  <button id="BtnAbout" label="Zebulon 정보" size="large" image="zebulon-32.png" onAction="OnBtnAction"/>
 		  </group>
 		  <group id="GroupSync" label="동기화">
 			  <!-- Col 1: start/stop (large = 3 normal rows tall). Stopped → opens the

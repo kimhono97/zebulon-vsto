@@ -79,6 +79,8 @@ Copy-Item (Join-Path $bin '*.dll') $addinDir -Force
 foreach ($f in @('ZebulonVSTO.vsto', 'ZebulonVSTO.dll.manifest', 'ZebulonVSTO.dll.config')) {
     Copy-Item (Join-Path $bin $f) $addinDir -Force
 }
+# Icon for the Apps & Features (Installed apps) entry Install.ps1 registers.
+Copy-Item (Join-Path $repo 'ZebulonVSTO\Resources\zebulon.ico') $addinDir -Force
 [System.IO.File]::WriteAllBytes((Join-Path $addinDir 'ZebulonVSTO.cer'),
     $cert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
 

@@ -9,8 +9,9 @@ namespace ZebulonVSTO.Slides {
         // resolved at runtime via {WebBaseUrl}/api/proj?n=zebulon (urls.alias);
         // this also hosts the Bible API used in Phase B. Leave empty to skip
         // /api/proj resolution and use ProviderBaseUrl directly.
-        // TODO(confirm): set the canonical Zebulon Web deployment URL.
-        public const string WebBaseUrl = "https://jym-workbox.vercel.app";
+        // The legacy https://jym-workbox.vercel.app still 307-redirects here,
+        // so older builds keep working; new builds call the canonical host.
+        public const string WebBaseUrl = "https://oholiab-works.vercel.app";
 
         // Fallback Provider base URL (used when /api/proj resolution is skipped
         // or fails). TODO(confirm): verify this is the current deployment.

@@ -7,7 +7,7 @@
     mc:Ignorable="d"
     FontFamily="Malgun Gothic" FontSize="13"
     Height="460" Width="500" MinHeight="420" MinWidth="460"
-    Title="동기화 시작" ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
+    Title="동기화 시작" Icon="/ZebulonVSTO;component/Resources/zebulon.ico" ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
     Closed="Window_Closed">
     <Grid Margin="16">
         <Grid.RowDefinitions>

@@ -18,7 +18,7 @@ commands; one or more **Receiver** instances execute them. Default UDP port
 
 ## Package contents
 ```
-ZebulonVSTO/        ZebulonVSTO.dll, .vsto, .dll.manifest, .dll.config, ZebulonVSTO.cer
+ZebulonVSTO/        ZebulonVSTO.dll, .vsto, .dll.manifest, .dll.config, ZebulonVSTO.cer, zebulon.ico
 Tools/              Send-SyncCommand.ps1, Start-SyncSession.ps1   (diagnostics; pure PowerShell)
 Install.ps1         per-user install/update
 Uninstall.ps1       per-user removal
@@ -33,10 +33,18 @@ AGENTS.md           this file
   dialog may appear; the user clicks Yes), copies the add-in to
   `%LOCALAPPDATA%\ZebulonVSTO`, and registers it at
   `HKCU\Software\Microsoft\Office\PowerPoint\Addins\ZebulonVSTO`
-  (`Manifest=<path>\ZebulonVSTO.vsto|vstolocal`, `LoadBehavior=3`). Updating is
-  just re-running it over a freshly extracted newer package.
-- **Uninstall:** close PowerPoint, then `... -File .\Uninstall.ps1` (removes the
-  registry key, the install folder, and the trusted cert).
+  (`Manifest=<path>\ZebulonVSTO.vsto|vstolocal`, `LoadBehavior=3`). It also
+  copies `Uninstall.ps1` + `zebulon.ico` into the install folder and registers a
+  per-user **Settings > Apps** entry at
+  `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\ZebulonVSTO`
+  (`DisplayIcon` = the installed `zebulon.ico`, `UninstallString` = the installed
+  `Uninstall.ps1`). Updating is just re-running it over a freshly extracted newer
+  package; saved preferences (`%APPDATA%\ZebulonVSTO\preferences.json`, e.g. the
+  remembered scripture languages/versions) are kept across updates.
+- **Uninstall:** close PowerPoint, then either Settings > Apps > Installed apps >
+  ZebulonVSTO > Uninstall, or `... -File .\Uninstall.ps1` from the package
+  (removes both registry keys, the install folder, the saved preferences
+  folder `%APPDATA%\ZebulonVSTO`, and the trusted cert).
 
 ## Using the add-in
 PowerPoint → **Add-Ins** ribbon tab → **"Zebulon"**. Pick **모드/Mode**

@@ -6,7 +6,7 @@
     xmlns:local="clr-namespace:ZebulonVSTO.Sync"
     mc:Ignorable="d"
     d:DesignHeight="450" d:DesignWidth="400"
-    Height="550" Width="500" MinHeight="400" MinWidth="420" Title="ZebulonVSTO 동기화 콘솔" ShowInTaskbar="False">
+    Height="550" Width="500" MinHeight="400" MinWidth="420" Title="ZebulonVSTO 동기화 콘솔" Icon="/ZebulonVSTO;component/Resources/zebulon.ico" ShowInTaskbar="False">
     <Grid Background="#FF3E3B52">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>

@@ -7,7 +7,7 @@
     mc:Ignorable="d"
     FontFamily="Malgun Gothic" FontSize="13"
     Height="680" Width="740" MinHeight="580" MinWidth="660"
-    Title="구절 추가" ShowInTaskbar="False" WindowStartupLocation="CenterOwner">
+    Title="구절 추가" Icon="/ZebulonVSTO;component/Resources/zebulon.ico" ShowInTaskbar="False" WindowStartupLocation="CenterOwner">
     <Window.Resources>
         <!-- Verse tap-row: number + preview text + start/end marker. The row
              background / border reflect VerseRow.Role (single/start/end/middle),
@@ -86,10 +86,17 @@
 
         <!-- Version / language / ruby slots -->
         <StackPanel Grid.Row="0">
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                <TextBlock Text="언어 수" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <ComboBox x:Name="LangCountCombo" Width="60" SelectionChanged="LangCountCombo_SelectionChanged"/>
-            </StackPanel>
+            <!-- Width = a slot row (52+110+6+170+6+130) so the reset button lines up
+                 with the ruby column's right edge. -->
+            <DockPanel Width="474" HorizontalAlignment="Left" Margin="0,0,0,8">
+                <Button x:Name="ResetPrefsButton" DockPanel.Dock="Right" Content="↺ 기본값으로" Padding="8,2"
+                        ToolTip="언어 3개 (한국어 / English / 中文) 기본 구성으로 되돌립니다."
+                        Click="ResetPrefs_Click"/>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="언어 수" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <ComboBox x:Name="LangCountCombo" Width="60" SelectionChanged="LangCountCombo_SelectionChanged"/>
+                </StackPanel>
+            </DockPanel>
             <StackPanel x:Name="Slot0" Orientation="Horizontal" Margin="0,0,0,4">
                 <TextBlock Text="언어 1" Width="52" VerticalAlignment="Center"/>
                 <ComboBox x:Name="Lang0" Width="110" DisplayMemberPath="Name" SelectionChanged="Lang_SelectionChanged"/>

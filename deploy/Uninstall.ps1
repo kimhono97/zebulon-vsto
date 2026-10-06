@@ -3,8 +3,11 @@
     Removes the ZebulonVSTO PowerPoint add-in for the current user.
 
 .DESCRIPTION
-    Unregisters the add-in (HKCU), deletes the installed files, and best-effort
-    removes the bundled signing certificate from the current user's stores.
+    Unregisters the add-in (HKCU) and its Apps & Features entry, deletes the
+    installed files and the saved preferences (%APPDATA%\ZebulonVSTO), and
+    best-effort removes the bundled signing certificate from the current
+    user's stores. Runs either from the extracted package or as the installed
+    copy (Settings > Apps > Uninstall).
     Verifies removal and reports the result in a dialog box. Per-user only - no
     administrator rights required.
 
@@ -18,8 +21,16 @@ $ErrorActionPreference = 'Stop'
 
 $packageRoot = $PSScriptRoot
 $target      = Join-Path $env:LOCALAPPDATA 'ZebulonVSTO'
-$cerPath     = Join-Path (Join-Path $packageRoot 'ZebulonVSTO') 'ZebulonVSTO.cer'
+$prefsDir    = Join-Path $env:APPDATA 'ZebulonVSTO'   # preferences.json (remembered UI settings)
 $addinKey    = 'HKCU:\Software\Microsoft\Office\PowerPoint\Addins\ZebulonVSTO'
+$appsKey     = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\ZebulonVSTO'
+# The cert sits in ZebulonVSTO\ when run from the package, or beside this
+# script when run as the installed copy; fall back to the install folder.
+$cerPath     = @(
+    (Join-Path (Join-Path $packageRoot 'ZebulonVSTO') 'ZebulonVSTO.cer'),
+    (Join-Path $packageRoot 'ZebulonVSTO.cer'),
+    (Join-Path $target 'ZebulonVSTO.cer')
+) | Where-Object { Test-Path $_ } | Select-Object -First 1
 
 function Show-Result([string] $title, [string] $message, [bool] $success) {
     $color = if ($success) { 'Green' } else { 'Red' }
@@ -41,6 +52,17 @@ try {
         Write-Warning 'PowerPoint is running. Close it so the add-in unloads and files are not locked.'
     }
 
+    # --- read the cert thumbprint now: the install folder may hold the only
+    #     copy of the .cer and is deleted below ---
+    $thumb = $null
+    if ($cerPath) {
+        try {
+            $thumb = (New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 $cerPath).Thumbprint
+        } catch {
+            Write-Warning "Could not read the certificate (harmless if left): $($_.Exception.Message)"
+        }
+    }
+
     # --- unregister ---
     if (Test-Path $addinKey) {
         Remove-Item -Path $addinKey -Recurse -Force
@@ -48,8 +70,15 @@ try {
     } else {
         Write-Host '  Add-in registration not found (already removed).'
     }
+    if (Test-Path $appsKey) {
+        Remove-Item -Path $appsKey -Recurse -Force
+        Write-Host '  Removed Settings > Apps entry.'
+    }
 
     # --- delete installed files ---
+    # Step out first: the installed copy run via Explorer starts with the
+    # install folder as its working directory, which would block the delete.
+    Set-Location -Path $env:TEMP
     $filesGone = $true
     if (Test-Path $target) {
         try {
@@ -63,11 +92,22 @@ try {
         Write-Host '  Install folder not found (already removed).'
     }
 
+    # --- delete saved preferences (uninstall = full removal; updates keep them) ---
+    $prefsGone = $true
+    if (Test-Path $prefsDir) {
+        try {
+            Remove-Item -Path $prefsDir -Recurse -Force
+            Write-Host "  Deleted saved preferences $prefsDir."
+        } catch {
+            $prefsGone = $false
+            Write-Warning "Could not delete $prefsDir : $($_.Exception.Message)"
+        }
+    }
+
     # --- best-effort: remove the bundled certificate from CurrentUser stores ---
-    if (Test-Path $cerPath) {
+    if ($thumb) {
         Write-Host '  Removing signing certificate. Windows may prompt - click Yes to actually remove the trusted certificate.' -ForegroundColor Yellow
         try {
-            $thumb = (New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 $cerPath).Thumbprint
             foreach ($storeName in @('Root', 'TrustedPublisher')) {
                 $store = New-Object System.Security.Cryptography.X509Certificates.X509Store($storeName, 'CurrentUser')
                 $store.Open('ReadWrite')
@@ -84,7 +124,9 @@ try {
     # --- verify ---
     $checks = [ordered]@{
         'Registry entry removed' = -not (Test-Path $addinKey)
+        'Apps entry removed'     = -not (Test-Path $appsKey)
         'Installed files removed' = $filesGone -and (-not (Test-Path $target))
+        'Preferences removed'     = $prefsGone -and (-not (Test-Path $prefsDir))
     }
     Write-Host ''
     Write-Host 'Verification:'

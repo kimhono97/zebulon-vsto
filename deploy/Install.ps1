@@ -6,7 +6,9 @@
 .DESCRIPTION
     Trusts the bundled self-signed certificate, copies the add-in to
     %LOCALAPPDATA%\ZebulonVSTO, and registers it under HKCU so PowerPoint loads
-    it at startup. Verifies each step and reports the result in a dialog box so
+    it at startup. Also registers a per-user Apps & Features (Installed apps)
+    entry with the Zebulon icon whose Uninstall button runs the installed copy
+    of Uninstall.ps1. Verifies each step and reports the result in a dialog box so
     the outcome is clear even when the window closes on completion. Per-user
     only - no administrator rights required.
 
@@ -25,6 +27,8 @@ $target      = Join-Path $env:LOCALAPPDATA 'ZebulonVSTO'
 $cerPath     = Join-Path $source 'ZebulonVSTO.cer'
 $vstoName    = 'ZebulonVSTO.vsto'
 $addinKey    = 'HKCU:\Software\Microsoft\Office\PowerPoint\Addins\ZebulonVSTO'
+$appsKey     = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\ZebulonVSTO'
+$uninstaller = Join-Path $packageRoot 'Uninstall.ps1'
 $required    = @('ZebulonVSTO.dll', 'ZebulonVSTO.vsto', 'ZebulonVSTO.dll.manifest')
 
 function Show-Result([string] $title, [string] $message, [bool] $success) {
@@ -57,6 +61,7 @@ try {
     foreach ($f in $required) {
         if (-not (Test-Path (Join-Path $source $f))) { throw "Missing required file: $f" }
     }
+    if (-not (Test-Path $uninstaller)) { throw 'Missing required file: Uninstall.ps1 (next to Install.ps1)' }
     if (Get-Process -Name POWERPNT -ErrorAction SilentlyContinue) {
         Write-Warning 'PowerPoint is running. Restart it after install so the add-in (re)loads.'
     }
@@ -89,12 +94,14 @@ try {
         Write-Warning "Certificate $cerPath not found; skipping trust step."
     }
 
-    # --- copy the add-in (all bundled files except the import-only .cer) ---
+    # --- copy the add-in + the uninstaller (the .cer too, so the installed
+    #     Uninstall.ps1 can find the cert to untrust when run from Settings) ---
     Write-Host "  Copying add-in to $target ..."
     New-Item -ItemType Directory -Path $target -Force | Out-Null
-    Get-ChildItem -Path $source -File | Where-Object { $_.Extension -ne '.cer' } | ForEach-Object {
+    Get-ChildItem -Path $source -File | ForEach-Object {
         Copy-Item -Path $_.FullName -Destination $target -Force
     }
+    Copy-Item -Path $uninstaller -Destination $target -Force
 
     # --- register the add-in under HKCU ---
     Write-Host '  Registering the add-in (HKCU)...'
@@ -104,11 +111,31 @@ try {
     Set-ItemProperty -Path $addinKey -Name 'FriendlyName' -Value 'ZebulonVSTO'
     Set-ItemProperty -Path $addinKey -Name 'Description'  -Value 'UDP slide synchronization add-in'
 
+    # --- register the Apps & Features (Installed apps) entry (HKCU) ---
+    Write-Host '  Registering in Settings > Apps (HKCU)...'
+    $dllVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $target 'ZebulonVSTO.dll')).FileVersion
+    $sizeKB     = [int][Math]::Ceiling(((Get-ChildItem -Path $target -File | Measure-Object -Property Length -Sum).Sum) / 1KB)
+    $psExe      = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    New-Item -Path $appsKey -Force | Out-Null
+    Set-ItemProperty -Path $appsKey -Name 'DisplayName'     -Value 'ZebulonVSTO'
+    Set-ItemProperty -Path $appsKey -Name 'DisplayVersion'  -Value $dllVersion
+    Set-ItemProperty -Path $appsKey -Name 'Publisher'       -Value 'kimhono97'
+    Set-ItemProperty -Path $appsKey -Name 'DisplayIcon'     -Value (Join-Path $target 'zebulon.ico')
+    Set-ItemProperty -Path $appsKey -Name 'UninstallString' -Value ('"{0}" -NoProfile -ExecutionPolicy Bypass -File "{1}"' -f $psExe, (Join-Path $target 'Uninstall.ps1'))
+    Set-ItemProperty -Path $appsKey -Name 'InstallLocation' -Value $target
+    Set-ItemProperty -Path $appsKey -Name 'InstallDate'     -Value (Get-Date -Format 'yyyyMMdd')
+    Set-ItemProperty -Path $appsKey -Name 'URLInfoAbout'    -Value 'https://github.com/kimhono97/zebulon-vsto'
+    Set-ItemProperty -Path $appsKey -Name 'EstimatedSize'   -Value $sizeKB -Type DWord
+    Set-ItemProperty -Path $appsKey -Name 'NoModify'        -Value 1 -Type DWord
+    Set-ItemProperty -Path $appsKey -Name 'NoRepair'        -Value 1 -Type DWord
+
     # --- verify ---
     $checks = [ordered]@{
         'Registry entry (LoadBehavior=3)' = (Test-Path $addinKey) -and ((Get-ItemProperty $addinKey).LoadBehavior -eq 3)
         'Add-in DLL copied'               = Test-Path (Join-Path $target 'ZebulonVSTO.dll')
         'Manifest copied'                 = Test-Path (Join-Path $target $vstoName)
+        'Uninstaller copied'              = Test-Path (Join-Path $target 'Uninstall.ps1')
+        'Apps & Features entry'           = (Test-Path $appsKey) -and ((Get-ItemProperty $appsKey).DisplayVersion -eq $dllVersion)
     }
     if ($certThumb) {
         $checks['Cert trusted (Root)']            = Test-CertInStore 'Root' $certThumb
@@ -122,7 +149,7 @@ try {
     }
 
     if ($checks.Values -notcontains $false) {
-        Show-Result 'ZebulonVSTO - Install complete' "INSTALL COMPLETE.`n`nInstalled to: $target`nRegistered:   HKCU\...\PowerPoint\Addins\ZebulonVSTO`n`nStart PowerPoint - the 'Zebulon' tab appears under the Add-Ins ribbon." $true
+        Show-Result 'ZebulonVSTO - Install complete' "INSTALL COMPLETE.`n`nInstalled to: $target`nRegistered:   HKCU\...\PowerPoint\Addins\ZebulonVSTO`nRemove later: Settings > Apps > Installed apps > ZebulonVSTO`n`nStart PowerPoint - the 'Zebulon' tab appears under the Add-Ins ribbon." $true
     } else {
         $failed = ($checks.Keys | Where-Object { -not $checks[$_] }) -join ', '
         Show-Result 'ZebulonVSTO - Install not verified' "INSTALL NOT FULLY VERIFIED.`n`nFailed checks: $failed`n`n(If only the cert checks failed, you may have declined the Windows trust prompt - re-run and click Yes.)" $false

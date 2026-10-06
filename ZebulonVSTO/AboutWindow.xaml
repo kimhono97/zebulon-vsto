@@ -1,0 +1,40 @@
+<Window x:Class="ZebulonVSTO.AboutWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    mc:Ignorable="d"
+    FontFamily="Malgun Gothic" FontSize="13"
+    SizeToContent="WidthAndHeight" ResizeMode="NoResize"
+    Title="Zebulon 정보" Icon="/ZebulonVSTO;component/Resources/zebulon.ico" ShowInTaskbar="False" WindowStartupLocation="CenterOwner">
+    <StackPanel Margin="20,20,20,16" MinWidth="380">
+        <!-- Logo + product / version / copyright -->
+        <StackPanel Orientation="Horizontal">
+            <Image Source="/ZebulonVSTO;component/Resources/zebulon-64.png" Width="64" Height="64"
+                   VerticalAlignment="Top" RenderOptions.BitmapScalingMode="HighQuality"/>
+            <StackPanel Margin="16,0,0,0" VerticalAlignment="Center">
+                <TextBlock x:Name="ProductText" FontSize="18" FontWeight="Bold"/>
+                <TextBlock x:Name="VersionText" Margin="0,4,0,0"/>
+                <TextBlock x:Name="CopyrightText" Margin="0,2,0,0" Foreground="#FF666666"/>
+            </StackPanel>
+        </StackPanel>
+
+        <Separator Margin="0,16,0,12"/>
+
+        <!-- Links (opened in the default browser) -->
+        <StackPanel Orientation="Horizontal">
+            <TextBlock>
+                <Hyperlink x:Name="RepoLink" RequestNavigate="Link_RequestNavigate">GitHub 저장소 ↗</Hyperlink>
+            </TextBlock>
+            <TextBlock Margin="20,0,0,0">
+                <Hyperlink x:Name="WebLink" RequestNavigate="Link_RequestNavigate">Zebulon Web ↗</Hyperlink>
+            </TextBlock>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button x:Name="CopyButton" Content="버전 정보 복사" Padding="10,2" Margin="0,0,8,0" Click="CopyButton_Click"/>
+            <!-- IsCancel closes the modal (Esc too); no Click handler needed. -->
+            <Button Content="닫기" Width="80" IsCancel="True"/>
+        </StackPanel>
+    </StackPanel>
+</Window>
