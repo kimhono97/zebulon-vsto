@@ -30,6 +30,8 @@
     <Compile Include="..\..\ZebulonVSTO\Slides\LyricModels.cs" Link="UnderTest\LyricModels.cs" />
     <Compile Include="..\..\ZebulonVSTO\Slides\TextTransforms.cs" Link="UnderTest\TextTransforms.cs" />
     <Compile Include="..\..\ZebulonVSTO\Slides\LayoutMatching.cs" Link="UnderTest\LayoutMatching.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\VenueRules.cs" Link="UnderTest\VenueRules.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\SlideGenPrefs.cs" Link="UnderTest\SlideGenPrefs.cs" />
     <Compile Include="..\..\ZebulonVSTO\Slides\PraisePlanner.cs" Link="UnderTest\PraisePlanner.cs" />
     <Compile Include="..\..\ZebulonVSTO\Slides\DisplayNames.cs" Link="UnderTest\DisplayNames.cs" />
     <Compile Include="..\..\ZebulonVSTO\Slides\BibleCatalog.cs" Link="UnderTest\BibleCatalog.cs" />
@@ -43,6 +45,11 @@
     <Compile Include="..\..\ZebulonVSTO\Slides\WordSelectPrefs.cs" Link="UnderTest\WordSelectPrefs.cs" />
     <!-- Per-user preferences (JSON, COM-free) -->
     <Compile Include="..\..\ZebulonVSTO\Preferences.cs" Link="UnderTest\Preferences.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- /venue/inspect results of the VENUE_ templates (regenerate: Fixtures/venue/gen_fixtures.py) -->
+    <None Include="Fixtures\venue\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

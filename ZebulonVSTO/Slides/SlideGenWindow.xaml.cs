@@ -27,8 +27,7 @@ namespace ZebulonVSTO.Slides {
             public LayoutMatch Match { get; private set; }
             public LayoutItem(LayoutMatch match) { Match = match; }
             public override string ToString() {
-                string name = string.IsNullOrEmpty(Match.Name) ? "(이름 없음)" : Match.Name;
-                return "#" + Match.LayoutIndex + "   " + name;
+                return LayoutLabel(Match.MasterIndex, Match.LayoutIndex, Match.Name) + (Match.IsVenue ? "" : "   (기존 마커)");
             }
         }
 
@@ -42,6 +41,7 @@ namespace ZebulonVSTO.Slides {
         private TemplateKind _kind = TemplateKind.Praise;
         private Step _step = Step.Type;
         private LayoutMatch _selectedBind;
+        private int _emptyMasterIndex;
         private int _emptyLayoutIndex = -1;
         private string _targetDeck; // null/"" = active presentation; set when a template is downloaded & opened
 
@@ -55,6 +55,8 @@ namespace ZebulonVSTO.Slides {
         private bool _lyricsLoaded;
         private bool _templatesLoaded;
         private bool _busy;
+        private bool _restoringPrefs; // set while OnLoaded applies saved options
+        private int _templateRequest; // latest template-listing request
 
         public SlideGenWindow() {
             InitializeComponent();
@@ -67,6 +69,10 @@ namespace ZebulonVSTO.Slides {
 
         private async void OnLoaded(object sender, RoutedEventArgs e) {
             Initialize();
+            SlideGenPrefs prefs = PreferencesStore.Load().SlideGen;
+            _restoringPrefs = true;
+            LegacyTemplatesCheck.IsChecked = prefs != null && prefs.ShowLegacyTemplates;
+            _restoringPrefs = false;
             await LoadTemplatesAsync();
         }
 
@@ -74,7 +80,7 @@ namespace ZebulonVSTO.Slides {
         // called again after a template is downloaded and opened.
         private void Initialize() {
             _layouts = _builder.ReadLayouts(_targetDeck);
-            _praiseMatch = LayoutMatching.Match(_layouts, SlideGenDefaults.PraiseBoxCount);
+            _praiseMatch = LayoutMatching.MatchAll(_layouts, VenueRules.Praise, SlideGenDefaults.PraiseBoxCount);
             if (_praiseMatch.IsAvailable) {
                 PraiseStatus.Text = "사용 가능 — bind 레이아웃 " + _praiseMatch.BindCandidates.Count + "개";
                 PraiseCard.IsEnabled = true;
@@ -89,7 +95,7 @@ namespace ZebulonVSTO.Slides {
                 PraiseCard.IsEnabled = false;
             }
 
-            _wordMatch = LayoutMatching.Match(_layouts, SlideGenDefaults.WordBoxCount);
+            _wordMatch = LayoutMatching.MatchAll(_layouts, VenueRules.Word, SlideGenDefaults.WordBoxCount);
             if (_wordMatch.IsAvailable) {
                 WordStatus.Text = "사용 가능 — bind 레이아웃 " + _wordMatch.BindCandidates.Count + "개";
                 WordCard.IsEnabled = true;
@@ -141,8 +147,8 @@ namespace ZebulonVSTO.Slides {
         private void EnterLayoutStep() {
             LayoutMatchResult match = _kind == TemplateKind.Word ? _wordMatch : _praiseMatch;
             LayoutHint.Text = _kind == TemplateKind.Word
-                ? "조건(마커 $1·$2·$3·$4)을 충족하는 bind 레이아웃:"
-                : "조건(마커 $1·$2·$3)을 충족하는 bind 레이아웃:";
+                ? "말씀 레이아웃 (VENUE: 이름이 …Word / 기존: 마커 $1·$2·$3·$4):"
+                : "찬양 레이아웃 (VENUE: 이름이 …LyricPage / 기존: 마커 $1·$2·$3):";
             LayoutListBox.Items.Clear();
             foreach (LayoutMatch m in match.BindCandidates) {
                 LayoutListBox.Items.Add(new LayoutItem(m));
@@ -150,8 +156,9 @@ namespace ZebulonVSTO.Slides {
             if (LayoutListBox.Items.Count > 0) {
                 LayoutListBox.SelectedIndex = 0;
             }
+            _emptyMasterIndex = match.EmptyMasterIndex;
             _emptyLayoutIndex = match.EmptyLayoutIndex;
-            EmptyLayoutText.Text = "구분(empty) 레이아웃: #" + _emptyLayoutIndex;
+            EmptyLayoutText.Text = "구분(empty) 레이아웃: " + LayoutLabel(_emptyMasterIndex, _emptyLayoutIndex, match.EmptyLayoutName);
             ShowStep(Step.Layout);
         }
 
@@ -214,11 +221,15 @@ namespace ZebulonVSTO.Slides {
                 return;
             }
             TemplateStatus.Text = "템플릿 목록 불러오는 중…";
+            int request = ++_templateRequest;
             try {
-                List<string> paths = await _provider.ListTemplatesAsync();
+                List<ProviderTemplate> templates = await _provider.ListTemplatesAsync(LegacyTemplatesCheck.IsChecked == true);
+                if (request != _templateRequest) {
+                    return; // the legacy option changed meanwhile; a newer listing wins
+                }
                 TemplateCombo.Items.Clear();
-                foreach (string p in paths ?? new List<string>()) {
-                    TemplateCombo.Items.Add(TemplateEntry.From(p));
+                foreach (ProviderTemplate t in templates) {
+                    TemplateCombo.Items.Add(TemplateEntry.From(t));
                 }
                 if (TemplateCombo.Items.Count > 0) {
                     TemplateCombo.SelectedIndex = 0;
@@ -226,8 +237,27 @@ namespace ZebulonVSTO.Slides {
                 _templatesLoaded = true;
                 TemplateStatus.Text = "";
             } catch (Exception ex) {
-                TemplateStatus.Text = "템플릿 목록을 불러오지 못했습니다: " + ex.Message;
+                if (request == _templateRequest) {
+                    TemplateStatus.Text = "템플릿 목록을 불러오지 못했습니다: " + ex.Message;
+                }
             }
+        }
+
+        // Re-list with/without the legacy PRAISE/WORD types and remember the choice.
+        private async void LegacyTemplatesCheck_Changed(object sender, RoutedEventArgs e) {
+            if (_restoringPrefs) {
+                return;
+            }
+            bool show = LegacyTemplatesCheck.IsChecked == true;
+            Preferences prefs = PreferencesStore.Load();
+            prefs.SlideGen = prefs.SlideGen ?? new SlideGenPrefs();
+            prefs.SlideGen.ShowLegacyTemplates = show;
+            PreferencesStore.Save(prefs);
+            if (_busy) {
+                return; // the list refreshes on the next window open
+            }
+            _templatesLoaded = false;
+            await LoadTemplatesAsync();
         }
 
         private async void DownloadButton_Click(object sender, RoutedEventArgs e) {
@@ -526,9 +556,12 @@ namespace ZebulonVSTO.Slides {
                     return;
                 }
                 LayoutSelection sel = new LayoutSelection {
+                    BindMasterIndex = _selectedBind.MasterIndex,
                     BindLayoutIndex = _selectedBind.LayoutIndex,
                     BoxSignatures = _selectedBind.BoxSignatures,
+                    EmptyMasterIndex = _emptyMasterIndex,
                     EmptyLayoutIndex = _emptyLayoutIndex,
+                    FillUnusedBoxes = _selectedBind.IsVenue,
                     // The CN-box centering nudge is Praise-only (faithful to the
                     // Exporter); Word must not move its 2nd-language box.
                     CenterCnBox = _kind == TemplateKind.Praise
@@ -569,6 +602,13 @@ namespace ZebulonVSTO.Slides {
             NextButton.IsEnabled = !busy;
             BackButton.IsEnabled = !busy;
             DownloadButton.IsEnabled = !busy;
+        }
+
+        // "#3   CS LyricPage", with the master when the deck has several.
+        private static string LayoutLabel(int masterIndex, int layoutIndex, string name) {
+            string label = string.IsNullOrEmpty(name) ? "(이름 없음)" : name;
+            string master = masterIndex > 1 ? "마스터 " + masterIndex + " · " : "";
+            return master + "#" + layoutIndex + "   " + label;
         }
 
         private static Visibility Vis(bool visible) {

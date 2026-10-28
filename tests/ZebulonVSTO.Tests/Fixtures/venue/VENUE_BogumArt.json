@@ -1,0 +1,321 @@
+{
+ "template": "VENUE_BogumArt.pptx",
+ "specVersion": "1.6",
+ "exporterRevision": "073da51",
+ "templatesRevision": "331e411",
+ "roles": {
+  "praise": "BgArt LyricPage",
+  "word": "BgArt Word",
+  "blank": "BgArt EmptyPage"
+ },
+ "layouts": [
+  {
+   "name": "BgArt EmptyPage",
+   "master": 0,
+   "index": 0,
+   "placeholders": [],
+   "expected": {
+    "role": "blank",
+    "kind": null,
+    "valid": true,
+    "fillable": false,
+    "tokens": [],
+    "fields": [],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "BgArt Prayer",
+   "master": 0,
+   "index": 1,
+   "placeholders": [
+    {
+     "text": "$subject.lang1 기도 제목",
+     "top": 102.59,
+     "height": 50.24,
+     "left": 58.34,
+     "width": 841.08,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$content.lang1 기도 내용 / 말씀",
+     "top": 156.82,
+     "height": 188.29,
+     "left": 58.34,
+     "width": 841.08,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": null,
+    "kind": "prayer",
+    "valid": false,
+    "fillable": true,
+    "tokens": [],
+    "fields": [
+     "subject.lang1",
+     "content.lang1"
+    ],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "BgArt Word",
+   "master": 0,
+   "index": 2,
+   "placeholders": [
+    {
+     "text": "$header 데살로니가전서 (1 Thessalonians, 帖撒罗尼迦前书) 1:2-3",
+     "top": 104.93,
+     "height": 57.69,
+     "left": 48.88,
+     "width": 722.75,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang2 English\rEnglish\rEnglish\rEnglish",
+     "top": 311.11,
+     "height": 179.56,
+     "left": 14.98,
+     "width": 927.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang3 耶稣\r耶稣\r耶稣\r耶稣",
+     "top": 1.06,
+     "height": 82.5,
+     "left": 14.98,
+     "width": 927.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang1 말씀 본문\r말씀 본문\r말씀 본문\r말씀 본문",
+     "top": 146.81,
+     "height": 269.05,
+     "left": 14.98,
+     "width": 927.81,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": "word",
+    "kind": null,
+    "valid": true,
+    "fillable": true,
+    "tokens": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "fields": [
+     "header",
+     "lang2",
+     "lang3",
+     "lang1"
+    ],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "BgArt Title",
+   "master": 0,
+   "index": 3,
+   "placeholders": [
+    {
+     "text": "$header 데살로니가전서 (1 Thessalonians, 帖撒罗尼迦前书) 1:2-3",
+     "top": 331.81,
+     "height": 118.89,
+     "left": 117.51,
+     "width": 722.75,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$title.lang1 설교 제목",
+     "top": 134.87,
+     "height": 50.24,
+     "left": 14.98,
+     "width": 927.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$title.lang2 Sermon Title",
+     "top": 189.19,
+     "height": 40.69,
+     "left": 14.98,
+     "width": 927.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$title.lang3 耶稣 耶稣",
+     "top": 230.07,
+     "height": 40.69,
+     "left": 14.98,
+     "width": 927.81,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": null,
+    "kind": "title",
+    "valid": false,
+    "fillable": true,
+    "tokens": [],
+    "fields": [
+     "header",
+     "title.lang1",
+     "title.lang2",
+     "title.lang3"
+    ],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "BgArt Chapter+Part",
+   "master": 0,
+   "index": 4,
+   "placeholders": [
+    {
+     "text": "$chapter.lang1 대지 제목",
+     "top": 100.3,
+     "height": 50.24,
+     "left": 66.57,
+     "width": 783.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$chapter.lang2 Chapter Name",
+     "top": 154.62,
+     "height": 40.69,
+     "left": 66.57,
+     "width": 783.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$chapter.lang3 耶稣 耶稣",
+     "top": 195.5,
+     "height": 40.69,
+     "left": 66.57,
+     "width": 783.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$part.lang1 소제목",
+     "top": 267.94,
+     "height": 40.69,
+     "left": 66.18,
+     "width": 783.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$part.lang2 Part Name",
+     "top": 312.71,
+     "height": 40.69,
+     "left": 66.18,
+     "width": 783.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$part.lang3 耶稣 耶稣",
+     "top": 353.58,
+     "height": 40.69,
+     "left": 66.18,
+     "width": 783.81,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": null,
+    "kind": "chapterPart",
+    "valid": false,
+    "fillable": true,
+    "tokens": [],
+    "fields": [
+     "chapter.lang1",
+     "chapter.lang2",
+     "chapter.lang3",
+     "part.lang1",
+     "part.lang2",
+     "part.lang3"
+    ],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "BgArt LyricPage",
+   "master": 0,
+   "index": 5,
+   "placeholders": [
+    {
+     "text": "",
+     "top": 301.6,
+     "height": 76.09,
+     "left": 16.0,
+     "width": 848.0,
+     "latent": true,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang2 SECONDARY LANGUAGE LYRICS 28pt\u000bSECONDARY LANGUAGE LYRICS",
+     "top": 202.11,
+     "height": 74.27,
+     "left": -0.0,
+     "width": 960.0,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang3 第三种语言的歌词 36pt",
+     "top": 259.81,
+     "height": 48.57,
+     "left": -0.0,
+     "width": 960.0,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang1 첫번째 언어 가사 43pt\u000b첫번째 언어 가사",
+     "top": 102.24,
+     "height": 120.48,
+     "left": -0.0,
+     "width": 960.0,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": "praise",
+    "kind": null,
+    "valid": true,
+    "fillable": true,
+    "tokens": [
+     1,
+     2,
+     3
+    ],
+    "fields": [
+     "lang2",
+     "lang3",
+     "lang1"
+    ],
+    "issueCount": 0
+   }
+  }
+ ]
+}

@@ -1,0 +1,418 @@
+{
+ "template": "VENUE_CornerStone.pptx",
+ "specVersion": "1.6",
+ "exporterRevision": "073da51",
+ "templatesRevision": "331e411",
+ "roles": {
+  "praise": "CS LyricPage",
+  "word": "CS Word",
+  "blank": "CS EmptyPage"
+ },
+ "layouts": [
+  {
+   "name": "CS EmptyPage",
+   "master": 0,
+   "index": 0,
+   "placeholders": [],
+   "expected": {
+    "role": "blank",
+    "kind": null,
+    "valid": true,
+    "fillable": false,
+    "tokens": [],
+    "fields": [],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "CS Word",
+   "master": 0,
+   "index": 1,
+   "placeholders": [
+    {
+     "text": "$header 데살로니가전서 (1 Thessalonians) 1:2-3",
+     "top": 14.71,
+     "height": 57.69,
+     "left": 48.88,
+     "width": 722.75,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang1 말씀 본문\r말씀 본문\r말씀 본문\r말씀 본문",
+     "top": 61.16,
+     "height": 269.05,
+     "left": 14.98,
+     "width": 927.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang2 English\rEnglish\rEnglish\rEnglish",
+     "top": 236.29,
+     "height": 218.6,
+     "left": 14.98,
+     "width": 927.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang3 耶稣\r耶稣\r耶稣\r耶稣",
+     "top": 473.9,
+     "height": 65.21,
+     "left": 14.98,
+     "width": 927.81,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": "word",
+    "kind": null,
+    "valid": true,
+    "fillable": true,
+    "tokens": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "fields": [
+     "header",
+     "lang1",
+     "lang2",
+     "lang3"
+    ],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "CS Title",
+   "master": 0,
+   "index": 2,
+   "placeholders": [
+    {
+     "text": "$header 데살로니가전서 (1 Thessalonians) 123:123-456",
+     "top": 380.92,
+     "height": 100.98,
+     "left": 60.29,
+     "width": 833.66,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$title.lang1 설교 제목",
+     "top": 76.57,
+     "height": 201.45,
+     "left": 60.59,
+     "width": 833.35,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$title.lang2 Sermon Title",
+     "top": 219.2,
+     "height": 122.98,
+     "left": 60.29,
+     "width": 833.75,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$title.lang3 耶稣 耶稣",
+     "top": 492.18,
+     "height": 38.74,
+     "left": 60.29,
+     "width": 833.75,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": null,
+    "kind": "title",
+    "valid": false,
+    "fillable": true,
+    "tokens": [],
+    "fields": [
+     "header",
+     "title.lang1",
+     "title.lang2",
+     "title.lang3"
+    ],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "CS Chapter+Part",
+   "master": 0,
+   "index": 3,
+   "placeholders": [
+    {
+     "text": "$chapter.lang1 대지 제목",
+     "top": 58.39,
+     "height": 50.24,
+     "left": 66.57,
+     "width": 783.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$chapter.lang2 Chapter Name",
+     "top": 112.71,
+     "height": 40.69,
+     "left": 66.57,
+     "width": 783.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$chapter.lang3 耶稣",
+     "top": 153.59,
+     "height": 40.69,
+     "left": 714.0,
+     "width": 136.38,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$part.lang1 소제목",
+     "top": 196.03,
+     "height": 40.69,
+     "left": 66.18,
+     "width": 783.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$part.lang2 Part Name",
+     "top": 240.8,
+     "height": 40.69,
+     "left": 66.18,
+     "width": 783.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$part.lang3 耶稣",
+     "top": 281.67,
+     "height": 40.69,
+     "left": 714.0,
+     "width": 135.99,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$item.lang1 항목",
+     "top": 325.62,
+     "height": 40.69,
+     "left": 96.95,
+     "width": 753.04,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$item.lang2 Item Name",
+     "top": 370.38,
+     "height": 40.69,
+     "left": 96.95,
+     "width": 753.04,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$item.lang3 耶稣",
+     "top": 411.26,
+     "height": 40.69,
+     "left": 714.0,
+     "width": 135.99,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": null,
+    "kind": "chapterPart",
+    "valid": false,
+    "fillable": true,
+    "tokens": [],
+    "fields": [
+     "chapter.lang1",
+     "chapter.lang2",
+     "chapter.lang3",
+     "part.lang1",
+     "part.lang2",
+     "part.lang3",
+     "item.lang1",
+     "item.lang2",
+     "item.lang3"
+    ],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "CS LyricPage",
+   "master": 0,
+   "index": 4,
+   "placeholders": [
+    {
+     "text": "$lang1 첫번째 언어 가사\u000b첫번째 언어 가사",
+     "top": 17.2,
+     "height": 120.48,
+     "left": -0.0,
+     "width": 960.0,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "",
+     "top": 223.32,
+     "height": 55.85,
+     "left": 16.0,
+     "width": 701.28,
+     "latent": true,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang2 SECONDARY LANGUAGE LYRICS\u000bSECONDARY LANGUAGE LYRICS",
+     "top": 119.55,
+     "height": 74.38,
+     "left": -0.0,
+     "width": 960.0,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang3 第三种语言的歌词",
+     "top": 182.46,
+     "height": 48.57,
+     "left": -0.0,
+     "width": 960.0,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": "praise",
+    "kind": null,
+    "valid": true,
+    "fillable": true,
+    "tokens": [
+     1,
+     2,
+     3
+    ],
+    "fields": [
+     "lang1",
+     "lang2",
+     "lang3"
+    ],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "CS Prayer",
+   "master": 0,
+   "index": 5,
+   "placeholders": [
+    {
+     "text": "$subject.lang1 1. 중보기도 제목",
+     "top": 16.87,
+     "height": 52.23,
+     "left": 28.35,
+     "width": 864.59,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$content.lang1 설명 / 인용 성경구절\r@list 뉴스 헤드라인 / 통계 수치 / 일정 / 장소 / 인원 / 명단 / 활동내용 요약 등\r@verse 좋은 땅에 있다는 것은 착하고 좋은 마음으로 말씀을 듣고 지키어 \r인내로 결실하는 자니라 \r@ref 누가복음 8:15\r",
+     "top": 89.69,
+     "height": 433.44,
+     "left": 71.56,
+     "width": 816.87,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$point.lang1 1) 세부 제목",
+     "top": 22.54,
+     "height": 46.56,
+     "left": 454.5,
+     "width": 438.44,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": null,
+    "kind": "prayer",
+    "valid": false,
+    "fillable": true,
+    "tokens": [],
+    "fields": [
+     "subject.lang1",
+     "content.lang1",
+     "point.lang1"
+    ],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "CS Order",
+   "master": 0,
+   "index": 6,
+   "placeholders": [
+    {
+     "text": "$title.lang1 차례명",
+     "top": 125.3,
+     "height": 66.7,
+     "left": 138.91,
+     "width": 207.27,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$affiliation ○○○ 소속명\r",
+     "top": 318.62,
+     "height": 42.88,
+     "left": 161.86,
+     "width": 234.14,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$name 홍길동",
+     "top": 243.0,
+     "height": 61.5,
+     "left": 161.86,
+     "width": 174.14,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$role 형제",
+     "top": 243.0,
+     "height": 56.0,
+     "left": 338.68,
+     "width": 102.32,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": null,
+    "kind": "order",
+    "valid": false,
+    "fillable": true,
+    "tokens": [],
+    "fields": [
+     "title.lang1",
+     "affiliation",
+     "name",
+     "role"
+    ],
+    "issueCount": 0
+   }
+  }
+ ]
+}

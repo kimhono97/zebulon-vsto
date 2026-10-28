@@ -47,6 +47,8 @@
                     <ComboBox x:Name="TemplateCombo" Width="320" DisplayMemberPath="DisplayName"/>
                     <Button x:Name="DownloadButton" Content="다운로드 후 열기" Margin="8,0,0,0" Padding="10,2" Click="DownloadButton_Click"/>
                 </StackPanel>
+                <CheckBox x:Name="LegacyTemplatesCheck" Content="기존 PRAISE / WORD 템플릿도 보기" Margin="0,6,0,0"
+                          Checked="LegacyTemplatesCheck_Changed" Unchecked="LegacyTemplatesCheck_Changed"/>
                 <TextBlock x:Name="TemplateStatus" Margin="0,6,0,0" Foreground="#FF777777" TextWrapping="Wrap"/>
             </StackPanel>
 

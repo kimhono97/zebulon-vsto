@@ -239,18 +239,13 @@ namespace ZebulonVSTO.Tests {
         }
 
         [Theory]
-        [InlineData("templates/PRAISE_CornerStone_Origin.pptx", "CornerStone_Origin")]
-        [InlineData("templates/WORD_DSM.pptx", "DSM")]
-        public void TemplateName_StripsPrefixAndExtension(string path, string expected) {
-            Assert.Equal(expected, DisplayNames.TemplateName(path));
-        }
-
-        [Theory]
-        [InlineData("templates/PRAISE_DSM.pptx", "Praise")]
-        [InlineData("templates/WORD_DSM.pptx", "Word")]
-        [InlineData("templates/Other.pptx", "")]
-        public void TemplateKind_FromPrefix(string path, string expected) {
-            Assert.Equal(expected, DisplayNames.TemplateKind(path));
+        [InlineData("VENUE", "Venue")]
+        [InlineData("praise", "Praise")]
+        [InlineData("WORD", "Word")]
+        [InlineData("SLIDES", "SLIDES")]
+        [InlineData(null, "")]
+        public void TemplateKind_FromProviderType(string type, string expected) {
+            Assert.Equal(expected, DisplayNames.TemplateKind(type));
         }
 
         [Fact]
@@ -264,9 +259,33 @@ namespace ZebulonVSTO.Tests {
 
         [Fact]
         public void TemplateEntry_BuildsLabel() {
-            TemplateEntry entry = TemplateEntry.From("templates/PRAISE_DSM.pptx");
-            Assert.Equal("Praise", entry.Kind);
-            Assert.Equal("[Praise] DSM", entry.DisplayName);
+            TemplateEntry entry = TemplateEntry.From(new ProviderTemplate {
+                Path = "templates/VENUE_CornerStone_JP.pptx", Type = "VENUE", Name = "CornerStone_JP"
+            });
+            Assert.Equal("templates/VENUE_CornerStone_JP.pptx", entry.Path);
+            Assert.Equal("Venue", entry.Kind);
+            Assert.Equal("[Venue] CornerStone_JP", entry.DisplayName);
+        }
+
+        [Fact]
+        public void ProviderTemplate_ParsesListing() {
+            List<ProviderTemplate> list = ProviderTemplate.ParseList(
+                "[{\"path\":\"templates/VENUE_DSM.pptx\",\"type\":\"VENUE\",\"name\":\"DSM\"}," +
+                "{\"path\":\"templates/PRAISE_DSM_2026.pptx\",\"type\":\"PRAISE\",\"name\":\"DSM_2026\"}," +
+                "{\"type\":\"VENUE\",\"name\":\"no path\"}]");
+
+            Assert.Equal(2, list.Count);
+            Assert.Equal("VENUE", list[0].Type);
+            Assert.Equal("DSM_2026", list[1].Name);
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("{\"err\":\"unsupported template type(s).\"}")]
+        [InlineData("not json")]
+        public void ProviderTemplate_BadInputIsEmpty(string json) {
+            Assert.Empty(ProviderTemplate.ParseList(json));
         }
 
         [Fact]

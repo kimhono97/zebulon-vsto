@@ -82,11 +82,16 @@ namespace ZebulonVSTO.Slides {
             }
         }
 
-        /// <summary>GET /template → array of template paths (e.g. "templates/PRAISE_DSM.pptx").</summary>
-        public async Task<List<string>> ListTemplatesAsync() {
+        /// <summary>
+        /// GET /templates?type=… → typed listing [{path, type, name}]. VENUE only, or
+        /// with the legacy PRAISE/WORD types too. The legacy GET /template hides
+        /// VENUE_ files, and the Provider asks clients not to parse file prefixes.
+        /// </summary>
+        public async Task<List<ProviderTemplate>> ListTemplatesAsync(bool includeLegacy) {
             await EnsureResolvedAsync().ConfigureAwait(false);
-            string json = await _http.GetStringAsync(_providerUrl + "/template").ConfigureAwait(false);
-            return LyricJson.ParseStringArray(json);
+            string types = includeLegacy ? "VENUE,PRAISE,WORD" : "VENUE";
+            string json = await _http.GetStringAsync(_providerUrl + "/templates?type=" + types).ConfigureAwait(false);
+            return ProviderTemplate.ParseList(json);
         }
 
         /// <summary>
