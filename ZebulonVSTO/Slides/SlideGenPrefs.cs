@@ -11,6 +11,14 @@ namespace ZebulonVSTO.Slides {
         [DataMember(Name = "showLegacyTemplates", EmitDefaultValue = false)]
         public bool ShowLegacyTemplates { get; set; }
 
+        /// <summary>Praise display switches (exporter praise item titleSlide /
+        /// separators); null = never saved = true.</summary>
+        [DataMember(Name = "praiseTitleSlide", EmitDefaultValue = false)]
+        public bool? PraiseTitleSlide { get; set; }
+
+        [DataMember(Name = "praiseSeparators", EmitDefaultValue = false)]
+        public bool? PraiseSeparators { get; set; }
+
         public ExtensionDataObject ExtensionData { get; set; }
     }
 }

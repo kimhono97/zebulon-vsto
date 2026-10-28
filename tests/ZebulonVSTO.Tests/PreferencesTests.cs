@@ -107,6 +107,16 @@ namespace ZebulonVSTO.Tests {
             Assert.Null(Preferences.FromJson("{\"wordSelect\":{\"langCount\":1,\"slots\":[]}}").SlideGen);
         }
 
+        [Fact]
+        public void SlideGen_PraiseSwitchesDefaultToOn() {
+            SlideGenPrefs saved = Preferences.FromJson(new Preferences {
+                SlideGen = new SlideGenPrefs { PraiseSeparators = false }
+            }.ToJson()).SlideGen;
+
+            Assert.Null(saved.PraiseTitleSlide); // never saved = on
+            Assert.False(saved.PraiseSeparators);
+        }
+
         [Theory]
         [InlineData(null)]
         [InlineData("")]

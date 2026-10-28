@@ -31,6 +31,7 @@
     <Compile Include="..\..\ZebulonVSTO\Slides\TextTransforms.cs" Link="UnderTest\TextTransforms.cs" />
     <Compile Include="..\..\ZebulonVSTO\Slides\LayoutMatching.cs" Link="UnderTest\LayoutMatching.cs" />
     <Compile Include="..\..\ZebulonVSTO\Slides\VenueRules.cs" Link="UnderTest\VenueRules.cs" />
+    <Compile Include="..\..\ZebulonVSTO\Slides\VenueItems.cs" Link="UnderTest\VenueItems.cs" />
     <Compile Include="..\..\ZebulonVSTO\Slides\SlideGenPrefs.cs" Link="UnderTest\SlideGenPrefs.cs" />
     <Compile Include="..\..\ZebulonVSTO\Slides\PraisePlanner.cs" Link="UnderTest\PraisePlanner.cs" />
     <Compile Include="..\..\ZebulonVSTO\Slides\DisplayNames.cs" Link="UnderTest\DisplayNames.cs" />
@@ -50,6 +51,8 @@
   <ItemGroup>
     <!-- /venue/inspect results of the VENUE_ templates (regenerate: Fixtures/venue/gen_fixtures.py) -->
     <None Include="Fixtures\venue\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- /venue/export of items/payload.json on a few templates (regenerate: Fixtures/venue/items/gen_items_fixtures.py) -->
+    <None Include="Fixtures\venue\items\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

@@ -228,6 +228,7 @@
     <Compile Include="Slides\TextTransforms.cs" />
     <Compile Include="Slides\LayoutMatching.cs" />
     <Compile Include="Slides\VenueRules.cs" />
+    <Compile Include="Slides\VenueItems.cs" />
     <Compile Include="Slides\SlideGenPrefs.cs" />
     <Compile Include="Slides\PraisePlanner.cs" />
     <Compile Include="Slides\ProviderClient.cs" />

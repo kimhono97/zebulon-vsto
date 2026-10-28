@@ -60,6 +60,9 @@ namespace ZebulonVSTO.Slides {
             }
             string ranges = SectionUtils.FormatSections(item.Sections);
             item.HeadText = (bookNamesText.Length > 0 ? bookNamesText + " " : "") + chapter + ":" + ranges;
+            if (bookNames.Count > 0) {
+                item.Header = new VenueHeader { Books = bookNames, Ref = chapter + ":" + ranges };
+            }
 
             // Per-slot section slicing + ruby/HTML → plain text.
             List<List<string>>[] perSlot = new List<List<string>>[SlotCount];

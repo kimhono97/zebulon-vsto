@@ -68,6 +68,7 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <TextBlock Grid.Row="0" Text="가사 선택" FontSize="16" FontWeight="Bold" Margin="0,4,0,12"/>
                 <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
@@ -101,7 +102,12 @@
                                  MouseDoubleClick="SelectedListBox_MouseDoubleClick"/>
                     </DockPanel>
                 </Grid>
-                <TextBlock Grid.Row="3" x:Name="DataError" Foreground="#FFCC0000" TextWrapping="Wrap" Visibility="Collapsed" Margin="0,8,0,0"/>
+                <!-- VENUE praise display switches (Zebulon Web v2.2 profile Defaults) -->
+                <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,8,0,0">
+                    <CheckBox x:Name="TitleSlideCheck" Content="곡마다 제목 슬라이드" IsChecked="True" Margin="0,0,16,0"/>
+                    <CheckBox x:Name="SeparatorsCheck" Content="곡 앞뒤 빈 슬라이드" IsChecked="True"/>
+                </StackPanel>
+                <TextBlock Grid.Row="4" x:Name="DataError" Foreground="#FFCC0000" TextWrapping="Wrap" Visibility="Collapsed" Margin="0,8,0,0"/>
             </Grid>
 
             <!-- Step 3 (Word): passage select -->

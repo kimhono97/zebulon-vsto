@@ -73,6 +73,8 @@ namespace ZebulonVSTO.Slides {
             _restoringPrefs = true;
             LegacyTemplatesCheck.IsChecked = prefs != null && prefs.ShowLegacyTemplates;
             _restoringPrefs = false;
+            TitleSlideCheck.IsChecked = prefs == null || prefs.PraiseTitleSlide != false;
+            SeparatorsCheck.IsChecked = prefs == null || prefs.PraiseSeparators != false;
             await LoadTemplatesAsync();
         }
 
@@ -533,9 +535,12 @@ namespace ZebulonVSTO.Slides {
             SetBusy(true);
             GenStatus.Text = "준비 중…";
             try {
-                List<SlidePlanItem> plan;
+                // Build exporter /venue/export items and plan them like the exporter would.
+                List<VenueItem> items;
+                bool titleSlide = TitleSlideCheck.IsChecked == true;
+                bool separators = SeparatorsCheck.IsChecked == true;
                 if (_kind == TemplateKind.Word) {
-                    plan = WordPlanner.BuildPlan(_wordItems.ToList());
+                    items = _wordItems.Select(VenueItem.Word).ToList();
                 } else {
                     GenStatus.Text = "가사 불러오는 중…";
                     List<Lyric> lyrics = new List<Lyric>();
@@ -549,8 +554,9 @@ namespace ZebulonVSTO.Slides {
                         GenStatus.Text = "가사를 불러오지 못했습니다.";
                         return;
                     }
-                    plan = PraisePlanner.BuildPlan(lyrics);
+                    items = lyrics.Select(l => VenueItem.Praise(l, titleSlide, separators)).ToList();
                 }
+                List<SlidePlanItem> plan = VenuePlanner.BuildPlan(items).Slides;
                 if (plan.Count == 0) {
                     GenStatus.Text = "생성할 슬라이드가 없습니다.";
                     return;
@@ -569,6 +575,9 @@ namespace ZebulonVSTO.Slides {
                 GenStatus.Text = "슬라이드 삽입 중…";
                 int inserted = _builder.ExecutePlan(_targetDeck, sel, plan, pos);
                 if (inserted > 0) {
+                    if (_kind == TemplateKind.Praise) {
+                        SavePraiseDisplay(titleSlide, separators);
+                    }
                     DialogResult = true;
                     Close();
                 } else {
@@ -579,6 +588,15 @@ namespace ZebulonVSTO.Slides {
             } finally {
                 SetBusy(false);
             }
+        }
+
+        // Remembered only after a successful insert (like WordSelectWindow's slots).
+        private static void SavePraiseDisplay(bool titleSlide, bool separators) {
+            Preferences prefs = PreferencesStore.Load();
+            prefs.SlideGen = prefs.SlideGen ?? new SlideGenPrefs();
+            prefs.SlideGen.PraiseTitleSlide = titleSlide ? (bool?)null : false;
+            prefs.SlideGen.PraiseSeparators = separators ? (bool?)null : false;
+            PreferencesStore.Save(prefs);
         }
 
         private async Task<Lyric> GetLyricCachedAsync(string path) {
