@@ -28,6 +28,7 @@ Both features keep all PowerPoint/COM interop isolated behind host-implemented i
   - **Office/SharePoint development** workload, **and**
   - the **VSTO (Visual Studio Tools for Office)** individual component.
   - ⚠️ Without the VSTO component the `Microsoft.VisualStudio.Tools.Office.targets` import fails and the build dies — this is the most common build error.
+- **CLI-only alternative (no IDE, no F5):** *Build Tools for Visual Studio* with `--add Microsoft.VisualStudio.Workload.OfficeBuildTools --add Microsoft.Net.Component.4.7.2.TargetingPack` (verified with `Build-Release.ps1` on **Build Tools 2026 v18.11**). `Build-Release.ps1` finds it because its `vswhere` call passes `-products *` — vswhere's default product set excludes Build Tools, so keep that flag.
 - Target machines (for running, not building) need the **VSTO 2010 Runtime** (bootstrapped via `Microsoft.VSTORuntime.4.0`).
 
 ### In the IDE (preferred)

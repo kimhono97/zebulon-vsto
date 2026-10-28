@@ -21,6 +21,12 @@
     > `Microsoft.VisualStudio.Tools.Office.targets`를 찾지 못해 빌드가 실패합니다.
     > Visual Studio Installer → 수정 → 개별 구성 요소에서 설치하세요.
 
+    - **IDE 없이 CLI 빌드만 할 경우**: Visual Studio 대신 **Build Tools for Visual Studio**만 설치해도 됩니다 (F5 디버깅 불가. Build Tools 2026 v18.11에서 `Build-Release.ps1` 빌드 검증 완료).
+
+    ```
+    vs_BuildTools.exe --passive --wait --norestart --add Microsoft.VisualStudio.Workload.OfficeBuildTools --add Microsoft.Net.Component.4.7.2.TargetingPack
+    ```
+
 2. PowerPoint 추가기능 VSTO Project
 
     - PowerPorint 2013+

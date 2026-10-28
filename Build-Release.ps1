@@ -22,16 +22,18 @@ $ErrorActionPreference = 'Stop'
 $repo = $PSScriptRoot
 
 # --- locate MSBuild (via vswhere; -find is unreliable so derive from installationPath) ---
+# -products * so a Build Tools-only install (no IDE) is found too; vswhere's
+# default product set covers only Community/Professional/Enterprise.
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
 $msbuild = $null
 if (Test-Path $vswhere) {
-    $inst = & $vswhere -latest -property installationPath
+    $inst = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -property installationPath
     if ($inst) {
         $candidate = Join-Path $inst 'MSBuild\Current\Bin\MSBuild.exe'
         if (Test-Path $candidate) { $msbuild = $candidate }
     }
 }
-if (-not $msbuild) { throw 'MSBuild not found. Install Visual Studio with the Office/VSTO workload.' }
+if (-not $msbuild) { throw 'MSBuild not found. Install Visual Studio or Build Tools with the Office/VSTO (OfficeBuildTools) workload.' }
 
 # --- build Release (VisualStudioVersion=10.0 required for the VSTO targets) ---
 Write-Host "Building $Configuration ..." -ForegroundColor Cyan
