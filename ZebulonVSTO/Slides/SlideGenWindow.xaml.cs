@@ -540,7 +540,9 @@ namespace ZebulonVSTO.Slides {
                 bool titleSlide = TitleSlideCheck.IsChecked == true;
                 bool separators = SeparatorsCheck.IsChecked == true;
                 if (_kind == TemplateKind.Word) {
-                    items = _wordItems.Select(VenueItem.Word).ToList();
+                    // Boxes 1..3 are the language fields; a VENUE layout may lack 2 and 3.
+                    List<bool> shownLangs = _selectedBind.BoxSignatures.Skip(1).Select(s => s != null).ToList();
+                    items = _wordItems.Select(w => VenueItem.Word(w, shownLangs)).ToList();
                 } else {
                     GenStatus.Text = "가사 불러오는 중…";
                     List<Lyric> lyrics = new List<Lyric>();

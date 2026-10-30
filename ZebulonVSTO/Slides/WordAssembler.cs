@@ -34,9 +34,11 @@ namespace ZebulonVSTO.Slides {
 
             // headText: dedupe booknames across slots in order (from API response).
             List<string> bookNames = new List<string>();
+            item.SlotBooks = new List<string>();
             for (int i = 0; i < slots; i++) {
                 BibleData d = chapterChunk[i];
                 string bn = (d != null && d.BookName != null) ? d.BookName : "";
+                item.SlotBooks.Add(bn);
                 if (bn.Length > 0 && !bookNames.Contains(bn)) {
                     bookNames.Add(bn);
                 }

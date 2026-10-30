@@ -31,6 +31,11 @@ namespace ZebulonVSTO.Slides {
         /// ({books, ref}); null when no book name is known. Its
         /// <see cref="VenueHeader.Format"/> equals <see cref="HeadText"/>.</summary>
         public VenueHeader Header { get; set; }
+
+        /// <summary>Book name per language slot ("" when unknown), so the header
+        /// can be rebuilt for only the slots a layout shows
+        /// (<see cref="VenueItem.Word(WordItem, IList{bool})"/>).</summary>
+        public List<string> SlotBooks { get; set; }
         public List<WordSection> Sections { get; set; }
         public List<List<string>> First { get; set; }
         public List<List<string>> Second { get; set; }

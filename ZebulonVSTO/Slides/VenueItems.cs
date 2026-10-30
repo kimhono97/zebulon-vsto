@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -83,15 +84,36 @@ namespace ZebulonVSTO.Slides {
 
         /// <summary>A word item; the structured header when known, else the plain headText.</summary>
         public static VenueItem Word(WordItem item) {
+            return Word(item, null);
+        }
+
+        /// <summary>
+        /// A word item for a layout that shows only some language fields
+        /// (<paramref name="shownLangs"/>[i] = slot i has a field; null = all):
+        /// the verses and header book names of the other slots are dropped, as
+        /// if those languages had not been chosen. The exporter itself lists
+        /// every book it is given.
+        /// </summary>
+        public static VenueItem Word(WordItem item, IList<bool> shownLangs) {
+            Func<int, bool> shown = i => shownLangs == null || (i < shownLangs.Count && shownLangs[i]);
+            VenueHeader header = item.Header;
+            if (header != null && shownLangs != null && item.SlotBooks != null) {
+                List<string> books = item.SlotBooks
+                    .Where((name, i) => shown(i) && !string.IsNullOrEmpty(name))
+                    .Distinct().ToList();
+                if (books.Count > 0) {
+                    header = new VenueHeader { Books = books, Ref = header.Ref };
+                }
+            }
             return new VenueItem {
                 Type = WordType,
                 Data = new VenueItemData {
-                    Header = item.Header,
-                    HeadText = item.Header == null ? item.HeadText : null,
+                    Header = header,
+                    HeadText = header == null ? item.HeadText : null,
                     Sections = item.Sections,
-                    First = item.First,
-                    Second = item.Second,
-                    Third = item.Third
+                    First = shown(0) ? item.First : null,
+                    Second = shown(1) ? item.Second : null,
+                    Third = shown(2) ? item.Third : null
                 }
             };
         }

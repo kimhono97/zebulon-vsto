@@ -65,6 +65,48 @@ namespace ZebulonVSTO.Tests {
             Assert.Contains("\"sections\":[{\"end\":1,\"start\":1}]", json);
         }
 
+        private static WordItem ThreeLanguageJohn() {
+            List<BibleData> chunk = new List<BibleData> {
+                new BibleData { BookName = "요한복음", Data = new List<string> { "하나님이" } },
+                new BibleData { BookName = "John", Data = new List<string> { "For God" } },
+                new BibleData { BookName = "约翰福音", Data = new List<string> { "神爱世人" } },
+            };
+            return WordAssembler.Build(chunk, 3, new List<WordSection> { new WordSection(1, 1) }, null);
+        }
+
+        [Fact]
+        public void Word_DropsLanguagesTheLayoutCannotShow() {
+            VenueItemData d = VenueItem.Word(ThreeLanguageJohn(), new[] { true, false, false }).Data;
+
+            Assert.Equal(new[] { "요한복음" }, d.Header.Books.ToArray());
+            Assert.Equal("요한복음 3:1", d.Header.Format());
+            Assert.NotNull(d.First);
+            Assert.Null(d.Second);
+            Assert.Null(d.Third);
+        }
+
+        [Fact]
+        public void Word_KeepsTheBookOfEachShownSlot() {
+            VenueItemData d = VenueItem.Word(ThreeLanguageJohn(), new[] { true, false, true }).Data;
+            Assert.Equal("요한복음 (约翰福音) 3:1", d.Header.Format());
+
+            // A payload layout with every field (or no layout info) keeps all books.
+            Assert.Equal("요한복음 (John, 约翰福音) 3:1", VenueItem.Word(ThreeLanguageJohn(), new[] { true, true, true }).Data.Header.Format());
+            Assert.Equal("요한복음 (John, 约翰福音) 3:1", VenueItem.Word(ThreeLanguageJohn()).Data.Header.Format());
+        }
+
+        [Fact]
+        public void Word_SameBookInTwoSlots_IsListedOnce() {
+            List<BibleData> chunk = new List<BibleData> {
+                new BibleData { BookName = "요한복음", Data = new List<string> { "a" } },
+                new BibleData { BookName = "요한복음", Data = new List<string> { "b" } },
+                new BibleData { BookName = "John", Data = new List<string> { "c" } },
+            };
+            WordItem w = WordAssembler.Build(chunk, 3, new List<WordSection> { new WordSection(1, 1) }, null);
+
+            Assert.Equal("요한복음 3:1", VenueItem.Word(w, new[] { true, true, false }).Data.Header.Format());
+        }
+
         [Fact]
         public void ParsesEveryItemType() {
             VenuePayload p = VenuePayload.FromJson(
