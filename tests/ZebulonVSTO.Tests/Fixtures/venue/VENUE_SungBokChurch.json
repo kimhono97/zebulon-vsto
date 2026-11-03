@@ -1,0 +1,321 @@
+{
+ "template": "VENUE_SungBokChurch.pptx",
+ "specVersion": "1.6",
+ "exporterRevision": "073da51",
+ "templatesRevision": "a2c8783",
+ "roles": {
+  "praise": "SbC LyricPage",
+  "word": "SbC Word",
+  "blank": "SbC EmptyPage"
+ },
+ "layouts": [
+  {
+   "name": "SbC EmptyPage",
+   "master": 0,
+   "index": 0,
+   "placeholders": [],
+   "expected": {
+    "role": "blank",
+    "kind": null,
+    "valid": true,
+    "fillable": false,
+    "tokens": [],
+    "fields": [],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "SbC Word",
+   "master": 0,
+   "index": 1,
+   "placeholders": [
+    {
+     "text": "$header 데살로니가전서 (1 Thessalonians) 1:2-3",
+     "top": 16.19,
+     "height": 57.69,
+     "left": 49.37,
+     "width": 910.63,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang1 말씀 본문\r말씀 본문\r말씀 본문\r말씀 본문",
+     "top": 61.16,
+     "height": 269.05,
+     "left": 14.98,
+     "width": 927.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang2 English\rEnglish\rEnglish\rEnglish",
+     "top": 328.72,
+     "height": 210.25,
+     "left": 14.98,
+     "width": 927.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang3 耶稣\r耶稣\r耶稣\r耶稣",
+     "top": 540.0,
+     "height": 46.07,
+     "left": 16.09,
+     "width": 927.81,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": "word",
+    "kind": null,
+    "valid": true,
+    "fillable": true,
+    "tokens": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "fields": [
+     "header",
+     "lang1",
+     "lang2",
+     "lang3"
+    ],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "SbC Title",
+   "master": 0,
+   "index": 2,
+   "placeholders": [
+    {
+     "text": "$header 데살로니가전서 (1 Thessalonians) 1:2-3",
+     "top": 263.53,
+     "height": 118.89,
+     "left": 117.51,
+     "width": 722.75,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$title.lang1 설교 제목",
+     "top": 67.18,
+     "height": 74.14,
+     "left": 14.98,
+     "width": 927.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$title.lang2 Sermon Title",
+     "top": 150.98,
+     "height": 40.69,
+     "left": 14.98,
+     "width": 927.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$title.lang3 耶稣 耶稣",
+     "top": 496.69,
+     "height": 40.69,
+     "left": 14.98,
+     "width": 927.81,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": null,
+    "kind": "title",
+    "valid": false,
+    "fillable": true,
+    "tokens": [],
+    "fields": [
+     "header",
+     "title.lang1",
+     "title.lang2",
+     "title.lang3"
+    ],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "SbC Chapter+Part",
+   "master": 0,
+   "index": 3,
+   "placeholders": [
+    {
+     "text": "$chapter.lang1 대지 제목",
+     "top": 32.02,
+     "height": 77.39,
+     "left": 66.57,
+     "width": 783.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$chapter.lang2 Chapter Name",
+     "top": 109.42,
+     "height": 56.41,
+     "left": 66.57,
+     "width": 783.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$chapter.lang3 耶稣 耶稣",
+     "top": 407.58,
+     "height": 40.69,
+     "left": 66.57,
+     "width": 783.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$part.lang1 소제목",
+     "top": 190.4,
+     "height": 59.26,
+     "left": 66.18,
+     "width": 783.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$part.lang2 Part Name",
+     "top": 251.41,
+     "height": 48.01,
+     "left": 66.18,
+     "width": 783.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$part.lang3 耶稣 耶稣",
+     "top": 499.12,
+     "height": 40.69,
+     "left": 66.18,
+     "width": 783.81,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": null,
+    "kind": "chapterPart",
+    "valid": false,
+    "fillable": true,
+    "tokens": [],
+    "fields": [
+     "chapter.lang1",
+     "chapter.lang2",
+     "chapter.lang3",
+     "part.lang1",
+     "part.lang2",
+     "part.lang3"
+    ],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "SbC Prayer",
+   "master": 0,
+   "index": 4,
+   "placeholders": [
+    {
+     "text": "$subject.lang1 기도 제목",
+     "top": 12.0,
+     "height": 73.09,
+     "left": 59.46,
+     "width": 841.08,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$content.lang1 기도 내용 / 말씀",
+     "top": 116.73,
+     "height": 303.27,
+     "left": 58.34,
+     "width": 841.08,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": null,
+    "kind": "prayer",
+    "valid": false,
+    "fillable": true,
+    "tokens": [],
+    "fields": [
+     "subject.lang1",
+     "content.lang1"
+    ],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "SbC LyricPage",
+   "master": 0,
+   "index": 5,
+   "placeholders": [
+    {
+     "text": "$lang1 첫번째 언어 가사\u000b첫번째 언어 가사",
+     "top": 19.52,
+     "height": 120.48,
+     "left": -0.0,
+     "width": 960.0,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "",
+     "top": 223.32,
+     "height": 74.38,
+     "left": 16.0,
+     "width": 701.28,
+     "latent": true,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang2 SECONDARY LANGUAGE LYRICS\u000bSECONDARY LANGUAGE LYRICS",
+     "top": 133.73,
+     "height": 74.38,
+     "left": -0.0,
+     "width": 960.0,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang3 第三种语言的歌词",
+     "top": 490.09,
+     "height": 48.57,
+     "left": -0.0,
+     "width": 960.0,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": "praise",
+    "kind": null,
+    "valid": true,
+    "fillable": true,
+    "tokens": [
+     1,
+     2,
+     3
+    ],
+    "fields": [
+     "lang1",
+     "lang2",
+     "lang3"
+    ],
+    "issueCount": 0
+   }
+  }
+ ]
+}

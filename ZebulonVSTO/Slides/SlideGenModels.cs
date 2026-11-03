@@ -10,42 +10,75 @@ namespace ZebulonVSTO.Slides {
     /// <summary>
     /// COM-free snapshot of one placeholder on a layout: its text plus geometry
     /// (points). Produced by the Interop layer reading PowerPoint; consumed by
-    /// the pure <see cref="LayoutMatching"/>.
+    /// the pure <see cref="LayoutMatching"/> and <see cref="VenueRules"/>.
     /// </summary>
     public class PlaceholderInfo {
+        // Prompt text as PowerPoint reports it: paragraphs separated by '\r',
+        // line breaks inside a paragraph as '\v'.
         public string Text { get; set; }
         public float Height { get; set; }
         public float Top { get; set; }
+        public float Left { get; set; }
+        public float Width { get; set; }
+
+        /// <summary>A date, footer or slide-number placeholder: never a data box,
+        /// and not counted as content (an empty layout may still carry one).</summary>
+        public bool IsLatent { get; set; }
+
+        /// <summary>False for placeholders that cannot hold text (e.g. picture).</summary>
+        public bool HasTextFrame { get; set; } = true;
     }
 
-    /// <summary>COM-free snapshot of one slide layout (default master).</summary>
+    /// <summary>COM-free snapshot of one slide layout.</summary>
     public class LayoutDescriptor {
-        // 1-based index into the default master's CustomLayouts collection.
+        // 1-based index into Presentation.Designs (one slide master per design).
+        public int MasterIndex { get; set; }
+        // 1-based index into that master's CustomLayouts collection.
         public int LayoutIndex { get; set; }
         public string Name { get; set; }
         public IReadOnlyList<PlaceholderInfo> Placeholders { get; set; }
     }
 
     /// <summary>
-    /// Identifies the placeholder that backs one box by its geometry
-    /// (height + top), mirroring the Exporter's placeholder matching.
+    /// Identifies the placeholder that backs one box by its geometry. The
+    /// Exporter matches height + top only; left + width are added because
+    /// some templates put two language boxes side by side at the same height
+    /// (VENUE_Cheonbosan LyricPage $lang2 / $lang3), which height + top alone
+    /// would resolve to the same placeholder.
     /// </summary>
     public class BoxSignature {
         public float Height { get; set; }
         public float Top { get; set; }
+        public float Left { get; set; }
+        public float Width { get; set; }
+
+        public static BoxSignature Of(PlaceholderInfo ph) {
+            return new BoxSignature { Height = ph.Height, Top = ph.Top, Left = ph.Left, Width = ph.Width };
+        }
     }
 
-    /// <summary>A layout satisfying the bind condition (all box markers present).</summary>
+    /// <summary>
+    /// A layout satisfying the bind condition: all "$N " markers present (legacy
+    /// PRAISE_/WORD_ templates), or a valid VENUE praise/word layout. One
+    /// signature per box; null for an optional box the layout leaves out (VENUE).
+    /// </summary>
     public class LayoutMatch {
+        public int MasterIndex { get; set; }
         public int LayoutIndex { get; set; }
         public string Name { get; set; }
         public List<BoxSignature> BoxSignatures { get; set; }
+
+        /// <summary>Found by the VENUE rules (<see cref="VenueRules"/>) rather
+        /// than the legacy "$N " markers.</summary>
+        public bool IsVenue { get; set; }
     }
 
     /// <summary>Result of scanning a deck's layouts for one template type.</summary>
     public class LayoutMatchResult {
         public List<LayoutMatch> BindCandidates { get; set; }
+        public int EmptyMasterIndex { get; set; }
         public int EmptyLayoutIndex { get; set; }
+        public string EmptyLayoutName { get; set; }
 
         public LayoutMatchResult() {
             BindCandidates = new List<LayoutMatch>();
@@ -58,9 +91,19 @@ namespace ZebulonVSTO.Slides {
 
     /// <summary>The layout choice fed to the Interop slide builder.</summary>
     public class LayoutSelection {
+        public int BindMasterIndex { get; set; }
         public int BindLayoutIndex { get; set; }
         public List<BoxSignature> BoxSignatures { get; set; }
+        public int EmptyMasterIndex { get; set; }
         public int EmptyLayoutIndex { get; set; }
+
+        /// <summary>
+        /// Write a single space into every box a bind slide leaves unset, so the
+        /// layout's "$lang2 …" prompt does not show in edit view. VENUE behaviour
+        /// (exporter venue/deck.py EMPTY_TEXT); the legacy Exporter leaves them
+        /// empty, so this is set only for VENUE layouts.
+        /// </summary>
+        public bool FillUnusedBoxes { get; set; }
 
         /// <summary>
         /// Apply the Praise-only CN-box vertical-centering nudge in the Interop

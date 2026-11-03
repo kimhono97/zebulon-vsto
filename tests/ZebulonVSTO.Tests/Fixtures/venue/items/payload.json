@@ -1,0 +1,34 @@
+{
+ "options": { "fixedSlides": "items" },
+ "items": [
+  { "type": "praise", "data": { "title": "Born again", "groups": [
+   { "name": "Verse 1", "pages": [
+    ["주 안에서 내 영혼\n다시 태어나", "through You Jesus\nI have seen my soul being born again", "在基督里，我的灵魂从死里复活"],
+    ["주의 사랑", "your love", "你的爱"] ] },
+   { "name": "Chorus", "pages": [ ["할렐루야", "hallelujah"] ] },
+   { "name": "Empty", "pages": [] } ] } },
+  { "type": "praise", "data": { "title": "No title slide", "titleSlide": false, "groups": [
+   { "name": "Verse", "pages": [ ["하나", "one", "一"] ] } ] } },
+  { "type": "praise", "data": { "title": "No separators", "separators": false, "groups": [
+   { "name": "Verse", "pages": [ ["둘", "two", "二"] ] } ] } },
+  { "type": "praise", "data": { "title": "Pages only", "titleSlide": false, "separators": false, "groups": [
+   { "name": "Verse", "pages": [ ["셋", "three", "三"], ["넷\n다섯", "four", "四"] ] } ] } },
+  { "type": "word", "data": {
+   "header": { "books": ["사도행전", "Acts", "使徒行传"], "ref": "19:30-32" },
+   "sections": [ { "start": 30, "end": 32 } ],
+   "first": [ ["바울이 백성 가운데로", "또 아시아 관리 중에", "사람들이 외쳐"] ],
+   "second": [ ["Paul wanted to appear", "", "The assembly was in confusion"] ],
+   "third": [ ["保罗想要进去"] ] } },
+  { "type": "word", "data": {
+   "headText": "창세기 1:1-2, 5-3",
+   "sections": [ { "start": 1, "end": 2 }, { "start": 5, "end": 3 } ],
+   "first": [ ["태초에", "땅이 혼돈하고"], ["빛을 낮이라", "", ""] ],
+   "second": [ ["In the beginning"], ["God called the light"] ] } },
+  { "type": "word", "data": {
+   "header": { "books": ["요한복음", "", "约翰福音"], "ref": "3:16" },
+   "sections": [ { "start": 16, "end": 16 } ],
+   "first": [ ["하나님이 세상을"] ] } },
+  { "type": "blank", "data": { "notes": "Offering" } },
+  { "type": "blank" }
+ ]
+}

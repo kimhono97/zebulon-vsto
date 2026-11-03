@@ -1,0 +1,150 @@
+{
+ "template": "VENUE_Cheonbosan.pptx",
+ "specVersion": "1.6",
+ "exporterRevision": "073da51",
+ "templatesRevision": "331e411",
+ "roles": {
+  "praise": "CbMt LyricPage",
+  "word": "CbMt Word",
+  "blank": "CbMt EmptyPage"
+ },
+ "layouts": [
+  {
+   "name": "CbMt Word",
+   "master": 0,
+   "index": 0,
+   "placeholders": [
+    {
+     "text": "$header 데살로니가전서 (1 Thessalonians) 1:2-3",
+     "top": 16.19,
+     "height": 57.69,
+     "left": 49.37,
+     "width": 910.63,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang1 말씀 본문\r말씀 본문\r말씀 본문\r말씀 본문",
+     "top": 61.16,
+     "height": 269.05,
+     "left": 14.98,
+     "width": 927.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang2 English\rEnglish\rEnglish\rEnglish",
+     "top": 328.72,
+     "height": 210.25,
+     "left": 14.98,
+     "width": 927.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang3 耶稣\r耶稣\r耶稣\r耶稣",
+     "top": 540.0,
+     "height": 46.07,
+     "left": 16.09,
+     "width": 927.81,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": "word",
+    "kind": null,
+    "valid": true,
+    "fillable": true,
+    "tokens": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "fields": [
+     "header",
+     "lang1",
+     "lang2",
+     "lang3"
+    ],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "CbMt LyricPage",
+   "master": 0,
+   "index": 1,
+   "placeholders": [
+    {
+     "text": "$lang1 72p, 페이퍼로지 6\u000b세미볼드, 줄간격 1.15",
+     "top": 51.84,
+     "height": 338.72,
+     "left": 10.88,
+     "width": 938.25,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang2 영어 검은색",
+     "top": 407.5,
+     "height": 106.0,
+     "left": 10.88,
+     "width": 469.12,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang3 중국어 검은색",
+     "top": 407.5,
+     "height": 106.0,
+     "left": 491.75,
+     "width": 457.38,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "",
+     "top": 23.09,
+     "height": 28.75,
+     "left": 10.87,
+     "width": 938.25,
+     "latent": true,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": "praise",
+    "kind": null,
+    "valid": true,
+    "fillable": true,
+    "tokens": [
+     1,
+     2,
+     3
+    ],
+    "fields": [
+     "lang1",
+     "lang2",
+     "lang3"
+    ],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "CbMt EmptyPage",
+   "master": 0,
+   "index": 2,
+   "placeholders": [],
+   "expected": {
+    "role": "blank",
+    "kind": null,
+    "valid": true,
+    "fillable": false,
+    "tokens": [],
+    "fields": [],
+    "issueCount": 0
+   }
+  }
+ ]
+}

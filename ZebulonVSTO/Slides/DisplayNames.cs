@@ -1,5 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Json;
+using System.Text;
 
 namespace ZebulonVSTO.Slides {
     /// <summary>
@@ -15,27 +20,15 @@ namespace ZebulonVSTO.Slides {
             return name.Length > 0 ? name : (path ?? "");
         }
 
-        /// <summary>"templates/PRAISE_CornerStone_Origin.pptx" → "CornerStone_Origin"
-        /// (basename, extension + leading TYPE_ prefix stripped).</summary>
-        public static string TemplateName(string path) {
-            string name = StripExtension(Basename(path));
-            int underscore = name.IndexOf('_');
-            if (underscore >= 0 && underscore + 1 < name.Length) {
-                name = name.Substring(underscore + 1);
+        /// <summary>Provider template type → label: "VENUE" → "Venue", "PRAISE" → "Praise",
+        /// "WORD" → "Word"; an unknown type is shown as given.</summary>
+        public static string TemplateKind(string type) {
+            switch ((type ?? "").ToUpperInvariant()) {
+                case "VENUE": return "Venue";
+                case "PRAISE": return "Praise";
+                case "WORD": return "Word";
+                default: return type ?? "";
             }
-            return name.Length > 0 ? name : StripExtension(Basename(path));
-        }
-
-        /// <summary>"templates/PRAISE_*.pptx" → "Praise", "templates/WORD_*.pptx" → "Word", else "".</summary>
-        public static string TemplateKind(string path) {
-            string baseName = Basename(path);
-            if (baseName.StartsWith("PRAISE_", StringComparison.OrdinalIgnoreCase)) {
-                return "Praise";
-            }
-            if (baseName.StartsWith("WORD_", StringComparison.OrdinalIgnoreCase)) {
-                return "Word";
-            }
-            return "";
         }
 
         /// <summary>A safe Windows .pptx filename derived from a server path basename.</summary>
@@ -86,14 +79,46 @@ namespace ZebulonVSTO.Slides {
         public string Kind { get; set; }
         public string DisplayName { get; set; }
 
-        public static TemplateEntry From(string path) {
-            string kind = DisplayNames.TemplateKind(path);
-            string name = DisplayNames.TemplateName(path);
+        /// <summary>From a GET /templates row; type and name come from the Provider.</summary>
+        public static TemplateEntry From(ProviderTemplate t) {
+            string kind = DisplayNames.TemplateKind(t.Type);
+            string name = string.IsNullOrEmpty(t.Name) ? t.Path ?? "" : t.Name;
             return new TemplateEntry {
-                Path = path,
+                Path = t.Path,
                 Kind = kind,
                 DisplayName = (kind.Length > 0 ? "[" + kind + "] " : "") + name
             };
+        }
+    }
+
+    /// <summary>
+    /// One row of the Provider's GET /templates: { path, type: "PRAISE" | "WORD" |
+    /// "VENUE", name } (name = basename after the prefix, without .pptx).
+    /// </summary>
+    [DataContract]
+    public class ProviderTemplate {
+        [DataMember(Name = "path")] public string Path { get; set; }
+        [DataMember(Name = "type")] public string Type { get; set; }
+        [DataMember(Name = "name")] public string Name { get; set; }
+
+        /// <summary>Parse the listing; rows without a path are dropped, malformed input yields [].</summary>
+        public static List<ProviderTemplate> ParseList(string json) {
+            List<ProviderTemplate> result = new List<ProviderTemplate>();
+            if (string.IsNullOrEmpty(json)) {
+                return result;
+            }
+            try {
+                using (MemoryStream ms = new MemoryStream(Encoding.UTF8.GetBytes(json))) {
+                    DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(List<ProviderTemplate>));
+                    List<ProviderTemplate> list = serializer.ReadObject(ms) as List<ProviderTemplate>;
+                    if (list != null) {
+                        result.AddRange(list.Where(t => t != null && !string.IsNullOrEmpty(t.Path)));
+                    }
+                }
+            } catch {
+                // malformed listing → empty
+            }
+            return result;
         }
     }
 }

@@ -1,0 +1,341 @@
+{
+ "template": "VENUE_DSM.pptx",
+ "specVersion": "1.6",
+ "exporterRevision": "073da51",
+ "templatesRevision": "a2c8783",
+ "roles": {
+  "praise": "DSM LyricPage",
+  "word": "DSM Word",
+  "blank": "DSM EmptyPage"
+ },
+ "layouts": [
+  {
+   "name": "DSM EmptyPage",
+   "master": 0,
+   "index": 0,
+   "placeholders": [],
+   "expected": {
+    "role": "blank",
+    "kind": null,
+    "valid": true,
+    "fillable": false,
+    "tokens": [],
+    "fields": [],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "DSM Prayer",
+   "master": 0,
+   "index": 1,
+   "placeholders": [
+    {
+     "text": "$subject.lang1 1. 기도 제목",
+     "top": 333.97,
+     "height": 47.75,
+     "left": 38.55,
+     "width": 882.9,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$content.lang1 기도 내용 / 말씀",
+     "top": 381.71,
+     "height": 158.29,
+     "left": 38.55,
+     "width": 882.99,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$subject.lang2 1. Prayer Subject",
+     "top": 19.2,
+     "height": 47.75,
+     "left": 38.55,
+     "width": 882.9,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$content.lang2 Prayer Contents / Bible Quotation",
+     "top": 66.95,
+     "height": 158.29,
+     "left": 38.55,
+     "width": 882.99,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": null,
+    "kind": "prayer",
+    "valid": false,
+    "fillable": true,
+    "tokens": [],
+    "fields": [
+     "subject.lang1",
+     "content.lang1",
+     "subject.lang2",
+     "content.lang2"
+    ],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "DSM Word",
+   "master": 0,
+   "index": 2,
+   "placeholders": [
+    {
+     "text": "$header 데살로니가전서 (1 Thessalonians, 帖撒罗尼迦前书) 1:2-3 21pt",
+     "top": 324.66,
+     "height": 36.42,
+     "left": 235.7,
+     "width": 717.89,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang1 말씀 본문 20pt\r말씀 본문",
+     "top": 357.18,
+     "height": 134.98,
+     "left": 14.98,
+     "width": 927.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang2 English 18pt\rEnglish",
+     "top": 414.66,
+     "height": 92.9,
+     "left": 14.98,
+     "width": 927.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang3 耶稣 20pt\r耶稣",
+     "top": 465.99,
+     "height": 60.87,
+     "left": 14.98,
+     "width": 927.81,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": "word",
+    "kind": null,
+    "valid": true,
+    "fillable": true,
+    "tokens": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "fields": [
+     "header",
+     "lang1",
+     "lang2",
+     "lang3"
+    ],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "DSM Title",
+   "master": 0,
+   "index": 3,
+   "placeholders": [
+    {
+     "text": "$header 데살로니가전서 (1 Thessalonians, 帖撒罗尼迦前书) 1:2-3 18pt",
+     "top": 489.0,
+     "height": 38.09,
+     "left": 117.51,
+     "width": 722.75,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$title.lang1 설교 제목 32pt",
+     "top": 369.26,
+     "height": 50.24,
+     "left": 14.98,
+     "width": 927.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$title.lang2 Sermon Title 22pt",
+     "top": 414.57,
+     "height": 40.69,
+     "left": 14.98,
+     "width": 927.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$title.lang3 耶稣 耶稣 24pt",
+     "top": 446.45,
+     "height": 40.69,
+     "left": 14.98,
+     "width": 927.81,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": null,
+    "kind": "title",
+    "valid": false,
+    "fillable": true,
+    "tokens": [],
+    "fields": [
+     "header",
+     "title.lang1",
+     "title.lang2",
+     "title.lang3"
+    ],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "DSM Chapter+Part",
+   "master": 0,
+   "index": 4,
+   "placeholders": [
+    {
+     "text": "$chapter.lang1 대지 제목 24pt",
+     "top": 367.86,
+     "height": 50.24,
+     "left": 43.0,
+     "width": 783.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$chapter.lang2 Chapter Name 20pt",
+     "top": 397.3,
+     "height": 40.69,
+     "left": 43.0,
+     "width": 783.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$chapter.lang3 耶稣 耶稣 22pt",
+     "top": 423.78,
+     "height": 40.69,
+     "left": 43.0,
+     "width": 783.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$part.lang1 소제목 24pt",
+     "top": 455.4,
+     "height": 40.69,
+     "left": 72.73,
+     "width": 783.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$part.lang2 Part Name 20pt",
+     "top": 484.78,
+     "height": 40.69,
+     "left": 72.73,
+     "width": 783.81,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$part.lang3 耶稣 耶稣 22pt",
+     "top": 507.17,
+     "height": 40.69,
+     "left": 72.73,
+     "width": 783.81,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": null,
+    "kind": "chapterPart",
+    "valid": false,
+    "fillable": true,
+    "tokens": [],
+    "fields": [
+     "chapter.lang1",
+     "chapter.lang2",
+     "chapter.lang3",
+     "part.lang1",
+     "part.lang2",
+     "part.lang3"
+    ],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "DSM LyricPage",
+   "master": 0,
+   "index": 5,
+   "placeholders": [
+    {
+     "text": "$lang1 첫번째 언어 가사 30pt\u000b첫번째 언어 가사",
+     "top": 374.84,
+     "height": 120.48,
+     "left": -0.0,
+     "width": 960.0,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "",
+     "top": 320.84,
+     "height": 53.99,
+     "left": 520.42,
+     "width": 439.58,
+     "latent": true,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang2 SECONDARY LANGUAGE LYRICS 18.5pt\u000bSECONDARY LANGUAGE LYRICS",
+     "top": 447.07,
+     "height": 74.38,
+     "left": -0.0,
+     "width": 960.0,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang3 第三种语言的歌词 22pt",
+     "top": 491.04,
+     "height": 48.57,
+     "left": -0.0,
+     "width": 960.0,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": "praise",
+    "kind": null,
+    "valid": true,
+    "fillable": true,
+    "tokens": [
+     1,
+     2,
+     3
+    ],
+    "fields": [
+     "lang1",
+     "lang2",
+     "lang3"
+    ],
+    "issueCount": 0
+   }
+  }
+ ]
+}

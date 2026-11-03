@@ -46,24 +46,34 @@ namespace ZebulonVSTO {
                     if (pres == null) {
                         return;
                     }
-                    CustomLayouts layouts = pres.SlideMaster.CustomLayouts;
-                    for (int i = 1; i <= layouts.Count; i++) {
-                        CustomLayout layout = layouts[i];
-                        List<PlaceholderInfo> phInfos = new List<PlaceholderInfo>();
-                        Placeholders phs = layout.Shapes.Placeholders;
-                        for (int p = 1; p <= phs.Count; p++) {
-                            Shape sh = phs[p];
-                            phInfos.Add(new PlaceholderInfo {
-                                Text = SafeText(sh),
-                                Height = sh.Height,
-                                Top = sh.Top
+                    // Every slide master (one per design), like the Exporter's
+                    // /venue scan — not just the default pres.SlideMaster.
+                    Designs designs = pres.Designs;
+                    for (int d = 1; d <= designs.Count; d++) {
+                        CustomLayouts layouts = designs[d].SlideMaster.CustomLayouts;
+                        for (int i = 1; i <= layouts.Count; i++) {
+                            CustomLayout layout = layouts[i];
+                            List<PlaceholderInfo> phInfos = new List<PlaceholderInfo>();
+                            Placeholders phs = layout.Shapes.Placeholders;
+                            for (int p = 1; p <= phs.Count; p++) {
+                                Shape sh = phs[p];
+                                phInfos.Add(new PlaceholderInfo {
+                                    Text = SafeText(sh),
+                                    Height = sh.Height,
+                                    Top = sh.Top,
+                                    Left = sh.Left,
+                                    Width = sh.Width,
+                                    IsLatent = IsLatentPlaceholder(sh),
+                                    HasTextFrame = sh.HasTextFrame == Core.MsoTriState.msoTrue
+                                });
+                            }
+                            result.Add(new LayoutDescriptor {
+                                MasterIndex = d,
+                                LayoutIndex = i,
+                                Name = SafeLayoutName(layout),
+                                Placeholders = phInfos
                             });
                         }
-                        result.Add(new LayoutDescriptor {
-                            LayoutIndex = i,
-                            Name = SafeLayoutName(layout),
-                            Placeholders = phInfos
-                        });
                     }
                 });
             } catch (Exception e) {
@@ -86,9 +96,8 @@ namespace ZebulonVSTO {
                     if (pres == null) {
                         return;
                     }
-                    CustomLayouts layouts = pres.SlideMaster.CustomLayouts;
-                    CustomLayout bindLayout = LayoutAt(layouts, selection.BindLayoutIndex);
-                    CustomLayout emptyLayout = LayoutAt(layouts, selection.EmptyLayoutIndex);
+                    CustomLayout bindLayout = LayoutAt(pres, selection.BindMasterIndex, selection.BindLayoutIndex);
+                    CustomLayout emptyLayout = LayoutAt(pres, selection.EmptyMasterIndex, selection.EmptyLayoutIndex);
                     if (bindLayout == null || emptyLayout == null) {
                         return;
                     }
@@ -209,11 +218,28 @@ namespace ZebulonVSTO {
             return SafeActivePresentation();
         }
 
-        private static CustomLayout LayoutAt(CustomLayouts layouts, int index) {
+        // masterIndex is 1-based into pres.Designs; 0 (unset) = the default master.
+        private static CustomLayout LayoutAt(Presentation pres, int masterIndex, int index) {
+            Designs designs = pres.Designs;
+            CustomLayouts layouts = masterIndex >= 1 && masterIndex <= designs.Count
+                ? designs[masterIndex].SlideMaster.CustomLayouts
+                : pres.SlideMaster.CustomLayouts;
             if (index < 1 || index > layouts.Count) {
                 return null;
             }
             return layouts[index];
+        }
+
+        // Date / footer / slide number: never a data box (exporter LATENT_TYPES).
+        private static bool IsLatentPlaceholder(Shape sh) {
+            try {
+                PpPlaceholderType t = sh.PlaceholderFormat.Type;
+                return t == PpPlaceholderType.ppPlaceholderDate ||
+                       t == PpPlaceholderType.ppPlaceholderFooter ||
+                       t == PpPlaceholderType.ppPlaceholderSlideNumber;
+            } catch {
+                return false;
+            }
         }
 
         private int ResolveStartIndex(Presentation pres, InsertPosition position) {
@@ -257,8 +283,10 @@ namespace ZebulonVSTO {
             // Praise-only — the Exporter does it solely in PPTXFile_Praise.addItem;
             // Word's box 2 is its 2nd-language placeholder and must NOT be moved
             // (gated by sel.CenterCnBox, which the wizard sets only for Praise).
+            // VENUE layouts may leave optional boxes out (null signatures).
             string en;
             if (sel.CenterCnBox && sigs.Count >= 3 && boxShapes[2] != null &&
+                sigs[0] != null && sigs[1] != null && sigs[2] != null &&
                 boxText.TryGetValue(1, out en) && en != null && en.IndexOf('\n') < 0 &&
                 sigs[0].Top < sigs[1].Top) {
                 try {
@@ -271,17 +299,21 @@ namespace ZebulonVSTO {
                 }
             }
 
-            foreach (KeyValuePair<int, string> kv in boxText) {
-                if (kv.Key < 0 || kv.Key >= boxShapes.Length) {
-                    continue;
+            for (int b = 0; b < boxShapes.Length; b++) {
+                string text;
+                if (!boxText.TryGetValue(b, out text)) {
+                    if (!sel.FillUnusedBoxes) {
+                        continue;
+                    }
+                    text = " "; // hide the "$lang2 …" prompt (VENUE EMPTY_TEXT)
                 }
-                Shape sh = boxShapes[kv.Key];
+                Shape sh = boxShapes[b];
                 if (sh == null) {
                     continue;
                 }
                 try {
                     if (sh.HasTextFrame == Core.MsoTriState.msoTrue) {
-                        sh.TextFrame.TextRange.Text = kv.Value ?? "";
+                        sh.TextFrame.TextRange.Text = text ?? "";
                     }
                 } catch {
                     // skip a placeholder that won't accept text
@@ -289,15 +321,17 @@ namespace ZebulonVSTO {
             }
         }
 
-        // Map a box to its slide placeholder by geometry (height + top), mirroring
-        // the Exporter. Tolerant compare because Interop reports points as floats.
+        // Map a box to its slide placeholder by geometry (height + top as in the
+        // Exporter, plus left + width — see BoxSignature). Tolerant compare
+        // because Interop reports points as floats.
         private static Shape FindPlaceholder(Placeholders phs, BoxSignature sig) {
             if (sig == null) {
                 return null;
             }
             for (int p = 1; p <= phs.Count; p++) {
                 Shape sh = phs[p];
-                if (Math.Abs(sh.Height - sig.Height) < 0.5f && Math.Abs(sh.Top - sig.Top) < 0.5f) {
+                if (Math.Abs(sh.Height - sig.Height) < 0.5f && Math.Abs(sh.Top - sig.Top) < 0.5f &&
+                    Math.Abs(sh.Left - sig.Left) < 0.5f && Math.Abs(sh.Width - sig.Width) < 0.5f) {
                     return sh;
                 }
             }

@@ -1,0 +1,435 @@
+{
+ "template": "VENUE_WChurch_JP.pptx",
+ "specVersion": "1.6",
+ "exporterRevision": "073da51",
+ "templatesRevision": "a2c8783",
+ "roles": {
+  "praise": "YoMori LyricPage",
+  "word": "YoMori Word",
+  "blank": "YoMori EmptyPage"
+ },
+ "layouts": [
+  {
+   "name": "YoMori EmptyPage",
+   "master": 0,
+   "index": 0,
+   "placeholders": [],
+   "expected": {
+    "role": "blank",
+    "kind": null,
+    "valid": true,
+    "fillable": false,
+    "tokens": [],
+    "fields": [],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "YoMori Word",
+   "master": 0,
+   "index": 1,
+   "placeholders": [
+    {
+     "text": "$header テサロニケ人への手紙第一 (데살로니가전서) 1:2-3",
+     "top": 22.28,
+     "height": 57.69,
+     "left": 23.0,
+     "width": 527.0,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang1 御言葉の本文\r御言葉の本文\r御言葉の本文\r御言葉の本文",
+     "top": 61.16,
+     "height": 228.06,
+     "left": 14.98,
+     "width": 442.02,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang1.ruby みことばのほんぶん\rみことばのほんぶん\rみことばのほんぶん\rみことばのほんぶん",
+     "top": 272.12,
+     "height": 97.27,
+     "left": 14.98,
+     "width": 442.02,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang2 성경 본문\r성경 본문\r성경 본문\r성경 본문",
+     "top": 363.13,
+     "height": 124.98,
+     "left": 14.98,
+     "width": 442.02,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": "word",
+    "kind": null,
+    "valid": true,
+    "fillable": true,
+    "tokens": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "fields": [
+     "header",
+     "lang1",
+     "lang1.ruby",
+     "lang2"
+    ],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "YoMori Title",
+   "master": 0,
+   "index": 2,
+   "placeholders": [
+    {
+     "text": "$header テサロニケ人への手紙第一 (데살로니가전서) 123:123-456",
+     "top": 232.32,
+     "height": 68.68,
+     "left": 65.0,
+     "width": 504.0,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$title.lang1 メッセージの題名",
+     "top": 43.83,
+     "height": 84.62,
+     "left": 35.61,
+     "width": 483.0,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$title.lang1.ruby メッセージのだいめい",
+     "top": 128.44,
+     "height": 40.69,
+     "left": 46.95,
+     "width": 476.49,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$title.lang2 메시지 제목",
+     "top": 173.4,
+     "height": 34.19,
+     "left": 54.95,
+     "width": 483.0,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": null,
+    "kind": "title",
+    "valid": false,
+    "fillable": true,
+    "tokens": [],
+    "fields": [
+     "header",
+     "title.lang1",
+     "title.lang1.ruby",
+     "title.lang2"
+    ],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "YoMori Chapter+Part",
+   "master": 0,
+   "index": 3,
+   "placeholders": [
+    {
+     "text": "$chapter.lang1 大見出し",
+     "top": 32.02,
+     "height": 70.56,
+     "left": 66.57,
+     "width": 413.43,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$chapter.lang1.ruby だいみだし",
+     "top": 103.81,
+     "height": 40.69,
+     "left": 66.57,
+     "width": 413.43,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$chapter.lang2 대지 제목",
+     "top": 129.21,
+     "height": 40.69,
+     "left": 66.57,
+     "width": 413.43,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$part.lang1 中見出し",
+     "top": 199.66,
+     "height": 40.69,
+     "left": 66.18,
+     "width": 413.43,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$part.lang1.ruby なかみだし",
+     "top": 239.2,
+     "height": 40.69,
+     "left": 66.18,
+     "width": 413.43,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$part.lang2 소지 제목",
+     "top": 264.43,
+     "height": 40.69,
+     "left": 66.18,
+     "width": 413.43,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": null,
+    "kind": "chapterPart",
+    "valid": false,
+    "fillable": true,
+    "tokens": [],
+    "fields": [
+     "chapter.lang1",
+     "chapter.lang1.ruby",
+     "chapter.lang2",
+     "part.lang1",
+     "part.lang1.ruby",
+     "part.lang2"
+    ],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "YoMori LyricPage",
+   "master": 0,
+   "index": 4,
+   "placeholders": [
+    {
+     "text": "$lang1 第一言語の歌詞\u000b第一言語の歌詞",
+     "top": 33.02,
+     "height": 74.96,
+     "left": 16.0,
+     "width": 576.7,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "",
+     "top": 2.82,
+     "height": 55.85,
+     "left": 16.0,
+     "width": 464.0,
+     "latent": true,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang1.ruby 第二言語の歌詞\r第二言語の歌詞",
+     "top": 100.7,
+     "height": 55.85,
+     "left": 16.0,
+     "width": 576.7,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$lang2 세번째 언어 가사",
+     "top": 144.82,
+     "height": 48.57,
+     "left": 16.0,
+     "width": 576.7,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": "praise",
+    "kind": null,
+    "valid": true,
+    "fillable": true,
+    "tokens": [
+     1,
+     2,
+     3
+    ],
+    "fields": [
+     "lang1",
+     "lang1.ruby",
+     "lang2"
+    ],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "YoMori Prayer",
+   "master": 0,
+   "index": 5,
+   "placeholders": [
+    {
+     "text": "$subject.lang1 執り成しの祈り課題",
+     "top": 15.87,
+     "height": 52.23,
+     "left": 74.0,
+     "width": 390.0,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$content.lang1 説明・引用聖句\r@verse 「時が満ち、神の国が近づいた。悔い改めて福音を信じなさい。」\r@ref マルコの福音書 1:15",
+     "top": 117.0,
+     "height": 208.0,
+     "left": 19.39,
+     "width": 444.61,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$content.lang2 설명 / 인용구절\r@verse 이르시되 때가 찼고 하나님의 나라가 가까이 왔으니 회개하고 복음을 믿으라 하시더라\r@ref 마가복음 1:15",
+     "top": 317.0,
+     "height": 146.0,
+     "left": 19.39,
+     "width": 444.61,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$subject.lang2 중보기도제목",
+     "top": 74.5,
+     "height": 33.1,
+     "left": 82.62,
+     "width": 381.72,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$number 1",
+     "top": 0.0,
+     "height": 109.6,
+     "left": 0.0,
+     "width": 66.96,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": null,
+    "kind": "prayer",
+    "valid": false,
+    "fillable": true,
+    "tokens": [],
+    "fields": [
+     "subject.lang1",
+     "content.lang1",
+     "content.lang2",
+     "subject.lang2",
+     "number"
+    ],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "YoMori Prepare",
+   "master": 0,
+   "index": 6,
+   "placeholders": [
+    {
+     "text": "$date 2026年10月✕日",
+     "top": 24.07,
+     "height": 42.0,
+     "left": 17.65,
+     "width": 195.84,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$place Wチャーチ",
+     "top": 60.12,
+     "height": 42.0,
+     "left": 17.65,
+     "width": 195.84,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": null,
+    "kind": null,
+    "valid": false,
+    "fillable": true,
+    "tokens": [],
+    "fields": [
+     "date",
+     "place"
+    ],
+    "issueCount": 0
+   }
+  },
+  {
+   "name": "YoMori Order",
+   "master": 0,
+   "index": 7,
+   "placeholders": [
+    {
+     "text": "$title.lang2\r차례명",
+     "top": 108.46,
+     "height": 68.07,
+     "left": 279.13,
+     "width": 117.39,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$title.lang1 順序名",
+     "top": 33.43,
+     "height": 108.39,
+     "left": 112.82,
+     "width": 230.48,
+     "latent": false,
+     "hasTextFrame": true
+    },
+    {
+     "text": "$title.lang1.ruby\rじゅんじょめい",
+     "top": 108.46,
+     "height": 68.07,
+     "left": 125.41,
+     "width": 189.72,
+     "latent": false,
+     "hasTextFrame": true
+    }
+   ],
+   "expected": {
+    "role": null,
+    "kind": "order",
+    "valid": false,
+    "fillable": true,
+    "tokens": [],
+    "fields": [
+     "title.lang2",
+     "title.lang1",
+     "title.lang1.ruby"
+    ],
+    "issueCount": 0
+   }
+  }
+ ]
+}

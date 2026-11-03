@@ -20,6 +20,10 @@ namespace ZebulonVSTO {
         [DataMember(Name = "wordSelect", EmitDefaultValue = false)]
         public WordSelectPrefs WordSelect { get; set; }
 
+        /// <summary>SlideGenWindow's remembered options; null = never saved.</summary>
+        [DataMember(Name = "slideGen", EmitDefaultValue = false)]
+        public SlideGenPrefs SlideGen { get; set; }
+
         public ExtensionDataObject ExtensionData { get; set; }
 
         public string ToJson() {

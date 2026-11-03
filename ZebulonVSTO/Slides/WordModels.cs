@@ -5,10 +5,12 @@ using System.Runtime.Serialization.Json;
 using System.Text;
 
 namespace ZebulonVSTO.Slides {
-    /// <summary>A 1-based inclusive verse range (mirrors web WordSection).</summary>
+    /// <summary>A 1-based inclusive verse range (mirrors web WordSection and the
+    /// exporter word item's <c>sections[]</c>).</summary>
+    [DataContract]
     public class WordSection {
-        public int Start { get; set; }
-        public int End { get; set; }
+        [DataMember(Name = "start")] public int Start { get; set; }
+        [DataMember(Name = "end")] public int End { get; set; }
 
         public WordSection() { }
         public WordSection(int start, int end) {
@@ -24,6 +26,16 @@ namespace ZebulonVSTO.Slides {
     /// </summary>
     public class WordItem {
         public string HeadText { get; set; }
+
+        /// <summary>The structured verse header the exporter's word item prefers
+        /// ({books, ref}); null when no book name is known. Its
+        /// <see cref="VenueHeader.Format"/> equals <see cref="HeadText"/>.</summary>
+        public VenueHeader Header { get; set; }
+
+        /// <summary>Book name per language slot ("" when unknown), so the header
+        /// can be rebuilt for only the slots a layout shows
+        /// (<see cref="VenueItem.Word(WordItem, IList{bool})"/>).</summary>
+        public List<string> SlotBooks { get; set; }
         public List<WordSection> Sections { get; set; }
         public List<List<string>> First { get; set; }
         public List<List<string>> Second { get; set; }
